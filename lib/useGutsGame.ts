@@ -42,9 +42,16 @@ export function getHandValue(cards: Card[]): number {
 
   const val1 = RANK_VALUES[cards[0].rank];
   const val2 = RANK_VALUES[cards[1].rank];
+  const ranks = [cards[0].rank, cards[1].rank];
   const isPair = cards[0].rank === cards[1].rank;
   const isFlush = cards[0].suit === cards[1].suit;
 
+  // 6-9 is the BEST hand - "Six Nine" beats everything!
+  const isSixNine = (ranks.includes('6') && ranks.includes('9'));
+
+  if (isSixNine) {
+    return 2000; // Best possible hand
+  }
   if (isPair) {
     return 1000 + val1;
   }
@@ -61,8 +68,12 @@ export function getHandDescription(cards: Card[]): string {
 
   const val1 = RANK_VALUES[cards[0].rank];
   const val2 = RANK_VALUES[cards[1].rank];
+  const ranks = [cards[0].rank, cards[1].rank];
   const isPair = cards[0].rank === cards[1].rank;
   const isFlush = cards[0].suit === cards[1].suit;
+
+  // Check for the legendary 6-9!
+  const isSixNine = (ranks.includes('6') && ranks.includes('9'));
 
   const rankName = (rank: Rank): string => {
     if (rank === 'A') {
@@ -84,6 +95,9 @@ export function getHandDescription(cards: Card[]): string {
     return suit.charAt(0).toUpperCase() + suit.slice(1);
   };
 
+  if (isSixNine) {
+    return '★ SIX-NINE! ★';
+  }
   if (isPair) {
     return `Pair of ${rankName(cards[0].rank)}s`;
   }

@@ -134,17 +134,23 @@ export function StartScreen({ onStart, resultMessage }: StartScreenProps) {
             <div
               style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}
             >
-              <span style={{ color: '#fbbf24' }}>1. Pair</span>
+              <span style={{ color: '#f472b6', fontWeight: 'bold' }}>★ SIX-NINE</span>
+              <span style={{ color: '#f472b6' }}>BEST HAND!</span>
+            </div>
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}
+            >
+              <span style={{ color: '#fbbf24' }}>2. Pair</span>
               <span style={{ color: '#64748b' }}>Two of same rank</span>
             </div>
             <div
               style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}
             >
-              <span style={{ color: '#fbbf24' }}>2. Flush</span>
+              <span style={{ color: '#fbbf24' }}>3. Flush</span>
               <span style={{ color: '#64748b' }}>Two of same suit</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#fbbf24' }}>3. High Card</span>
+              <span style={{ color: '#fbbf24' }}>4. High Card</span>
               <span style={{ color: '#64748b' }}>Highest card wins</span>
             </div>
           </div>
