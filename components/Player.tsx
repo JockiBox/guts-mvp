@@ -9,58 +9,80 @@ interface PlayerProps {
   isWinner: boolean;
   isLoser: boolean;
   showCards: boolean;
-  position: 'top' | 'left' | 'right' | 'bottom-left' | 'bottom-right';
 }
 
-export function Player({ player, isWinner, isLoser, showCards, position }: PlayerProps) {
-  const positionClasses = {
-    top: 'top-4 left-1/2 -translate-x-1/2',
-    left: 'left-4 top-1/2 -translate-y-1/2',
-    right: 'right-4 top-1/2 -translate-y-1/2',
-    'bottom-left': 'bottom-32 left-8',
-    'bottom-right': 'bottom-32 right-8',
-  };
-
-  const statusClass = isWinner ? 'winner' : isLoser ? 'loser' : '';
-  const inactiveClass = !player.isActive ? 'inactive' : '';
-
-  const cardSize = player.isHuman ? 'lg' : 'md';
+export function Player({ player, isWinner, isLoser, showCards }: PlayerProps) {
+  const borderColor = isWinner ? '#fbbf24' : isLoser ? '#ef4444' : '#334155';
+  const shadowColor = isWinner
+    ? '0 0 15px rgba(251,191,36,0.4)'
+    : isLoser
+      ? '0 0 15px rgba(239,68,68,0.4)'
+      : 'none';
 
   return (
     <div
-      className={`player-seat neu-card p-4 absolute ${positionClasses[position]} ${statusClass} ${inactiveClass}`}
+      style={{
+        background: '#1e293b',
+        borderRadius: '12px',
+        padding: '12px',
+        border: `2px solid ${borderColor}`,
+        boxShadow: shadowColor,
+        opacity: player.isActive ? 1 : 0.4,
+        filter: player.isActive ? 'none' : 'grayscale(0.8)',
+      }}
     >
-      <div className="flex flex-col items-center gap-2">
-        {/* Player Name & Tokens */}
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-teal-400">{player.name}</span>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px',
+        }}
+      >
+        {/* Player Name & Personality */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontWeight: 'bold', color: '#14b8a6', fontSize: '14px' }}>
+            {player.name}
+          </span>
           {player.personality && (
-            <span className="text-xs text-slate-500 capitalize">({player.personality})</span>
+            <span style={{ fontSize: '11px', color: '#64748b', textTransform: 'capitalize' }}>
+              ({player.personality})
+            </span>
           )}
         </div>
 
         {/* Token Count */}
-        <div className="flex items-center gap-1">
-          <div className="token w-5 h-5" />
-          <span className="font-mono font-bold text-amber-400">{player.tokens}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div
+            style={{
+              width: '16px',
+              height: '16px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #fbbf24, #d97706)',
+              border: '1px solid #b45309',
+            }}
+          />
+          <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#fbbf24', fontSize: '14px' }}>
+            {player.tokens}
+          </span>
         </div>
 
         {/* Cards */}
-        <div className="flex gap-2 mt-1">
+        <div style={{ display: 'flex', gap: '4px' }}>
           {player.cards.map((card, idx) => (
             <Card
               key={idx}
               card={card}
               revealed={showCards && player.cardsRevealed > idx}
               isFlipping={player.cardsRevealed === idx + 1}
-              size={cardSize}
+              size="sm"
             />
           ))}
         </div>
 
         {/* Hand Description */}
         {showCards && player.cardsRevealed === 2 && (
-          <div className="text-sm text-teal-300 font-medium mt-1">
+          <div style={{ fontSize: '11px', color: '#5eead4', fontWeight: 500 }}>
             {getHandDescription(player.cards)}
           </div>
         )}
@@ -68,11 +90,15 @@ export function Player({ player, isWinner, isLoser, showCards, position }: Playe
         {/* Decision Indicator */}
         {player.decision && (
           <div
-            className={`text-xs font-bold px-3 py-1 rounded-full ${
-              player.decision === 'hold'
-                ? 'bg-green-600/30 text-green-400 border border-green-500'
-                : 'bg-red-600/30 text-red-400 border border-red-500'
-            }`}
+            style={{
+              fontSize: '11px',
+              fontWeight: 'bold',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              background: player.decision === 'hold' ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
+              color: player.decision === 'hold' ? '#4ade80' : '#f87171',
+              border: `1px solid ${player.decision === 'hold' ? '#22c55e' : '#ef4444'}`,
+            }}
           >
             {player.decision.toUpperCase()}
           </div>

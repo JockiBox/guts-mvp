@@ -3,7 +3,6 @@
 import { useGutsGame } from '@/lib/useGutsGame';
 import { Player } from './Player';
 import { Pot } from './Pot';
-import { Countdown } from './Countdown';
 import { Card } from './Card';
 import { StartScreen } from './StartScreen';
 import { getHandDescription } from '@/lib/useGutsGame';
@@ -22,95 +21,245 @@ export function GameBoard() {
     roundNumber,
   } = state;
 
-  // Show start screen
   if (gamePhase === 'start') {
     return <StartScreen onStart={startGame} resultMessage={roundResult} />;
   }
 
   const aiPlayers = players.filter(p => !p.isHuman && p.isActive);
-  const positions: Array<'top' | 'left' | 'right' | 'bottom-left' | 'bottom-right'> = [
-    'top',
-    'left',
-    'right',
-    'bottom-left',
-  ];
-
   const showCards = gamePhase === 'reveal' || gamePhase === 'summary';
   const isDecisionPhase = gamePhase === 'decision';
   const humanDecided = humanPlayer?.decision !== null;
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden p-4">
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 -z-10" />
+    <div
+      style={{
+        minHeight: '100vh',
+        width: '100%',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* Header with Round */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+        <div
+          style={{
+            background: '#1e293b',
+            borderRadius: '12px',
+            padding: '8px 16px',
+            border: '1px solid #334155',
+          }}
+        >
+          <span style={{ color: '#94a3b8', fontSize: '14px' }}>Round </span>
+          <span style={{ color: '#14b8a6', fontWeight: 'bold' }}>{roundNumber}</span>
+        </div>
+      </div>
 
-      {/* Game table area */}
-      <div className="relative w-full h-[calc(100vh-2rem)] max-w-6xl mx-auto">
-        {/* Round indicator */}
-        <div className="absolute top-4 right-4 neu-card px-4 py-2">
-          <span className="text-slate-400">Round</span>
-          <span className="ml-2 font-bold text-teal-400">{roundNumber}</span>
+      {/* Main game area */}
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          maxWidth: '1000px',
+          margin: '0 auto',
+          width: '100%',
+        }}
+      >
+        {/* Top AI player */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+          {aiPlayers[0] && (
+            <Player
+              player={aiPlayers[0]}
+              isWinner={winners.includes(aiPlayers[0].id)}
+              isLoser={losers.includes(aiPlayers[0].id)}
+              showCards={showCards && aiPlayers[0].decision === 'hold'}
+            />
+          )}
         </div>
 
-        {/* AI Players */}
-        {aiPlayers.slice(0, 4).map((player, idx) => (
-          <Player
-            key={player.id}
-            player={player}
-            position={positions[idx]}
-            isWinner={winners.includes(player.id)}
-            isLoser={losers.includes(player.id)}
-            showCards={showCards && player.decision === 'hold'}
-          />
-        ))}
+        {/* Middle section: Left AI - Center - Right AIs */}
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '16px',
+          }}
+        >
+          {/* Left AI */}
+          <div>
+            {aiPlayers[1] && (
+              <Player
+                player={aiPlayers[1]}
+                isWinner={winners.includes(aiPlayers[1].id)}
+                isLoser={losers.includes(aiPlayers[1].id)}
+                showCards={showCards && aiPlayers[1].decision === 'hold'}
+              />
+            )}
+          </div>
 
-        {/* Center Pot Area */}
-        <Pot amount={pot} ghostHands={ghostHands} winners={winners} showGhostCards={showCards} />
+          {/* Center: Countdown, Messages, Pot */}
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '16px',
+            }}
+          >
+            {/* Countdown */}
+            {isDecisionPhase && countdown !== null && countdown > 0 && (
+              <div
+                style={{
+                  fontSize: '96px',
+                  fontWeight: 900,
+                  color: '#14b8a6',
+                  textShadow: '0 0 40px rgba(20,184,166,0.8)',
+                }}
+              >
+                {countdown}
+              </div>
+            )}
 
-        {/* Human Player Area - Bottom Center */}
+            {/* Reveal indicator */}
+            {gamePhase === 'reveal' && (
+              <div style={{ color: '#14b8a6', fontWeight: 'bold', fontSize: '18px' }}>
+                Revealing cards...
+              </div>
+            )}
+
+            {/* Result message */}
+            {gamePhase === 'summary' && roundResult && (
+              <div
+                style={{
+                  background: '#1e293b',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  border: '1px solid #334155',
+                  textAlign: 'center',
+                  maxWidth: '400px',
+                }}
+              >
+                <p style={{ color: '#fbbf24', fontWeight: 'bold', fontSize: '18px', margin: 0 }}>
+                  {roundResult}
+                </p>
+              </div>
+            )}
+
+            {/* Pot */}
+            <Pot amount={pot} ghostHands={ghostHands} winners={winners} showGhostCards={showCards} />
+          </div>
+
+          {/* Right AIs */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {aiPlayers[2] && (
+              <Player
+                player={aiPlayers[2]}
+                isWinner={winners.includes(aiPlayers[2].id)}
+                isLoser={losers.includes(aiPlayers[2].id)}
+                showCards={showCards && aiPlayers[2].decision === 'hold'}
+              />
+            )}
+            {aiPlayers[3] && (
+              <Player
+                player={aiPlayers[3]}
+                isWinner={winners.includes(aiPlayers[3].id)}
+                isLoser={losers.includes(aiPlayers[3].id)}
+                showCards={showCards && aiPlayers[3].decision === 'hold'}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Human player at bottom */}
         {humanPlayer && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
-            {/* Human's cards */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '16px',
+              marginTop: '16px',
+            }}
+          >
             <div
-              className={`neu-card p-4 ${
-                winners.includes(humanPlayer.id)
-                  ? 'winner'
+              style={{
+                background: '#1e293b',
+                borderRadius: '16px',
+                padding: '16px',
+                border: `2px solid ${
+                  winners.includes(humanPlayer.id)
+                    ? '#fbbf24'
+                    : losers.includes(humanPlayer.id)
+                      ? '#ef4444'
+                      : '#334155'
+                }`,
+                boxShadow: winners.includes(humanPlayer.id)
+                  ? '0 0 20px rgba(251,191,36,0.4)'
                   : losers.includes(humanPlayer.id)
-                    ? 'loser animate-loser'
-                    : ''
-              }`}
+                    ? '0 0 20px rgba(239,68,68,0.4)'
+                    : 'none',
+              }}
             >
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-teal-400 text-lg">{humanPlayer.name}</span>
-                  <div className="flex items-center gap-1">
-                    <div className="token w-5 h-5" />
-                    <span className="font-mono font-bold text-amber-400">{humanPlayer.tokens}</span>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontWeight: 'bold', color: '#14b8a6', fontSize: '18px' }}>
+                    {humanPlayer.name}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #fbbf24, #d97706)',
+                        border: '2px solid #b45309',
+                      }}
+                    />
+                    <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#fbbf24' }}>
+                      {humanPlayer.tokens}
+                    </span>
                   </div>
                 </div>
 
-                {/* Cards - Always visible for human */}
-                <div className="flex gap-3">
+                <div style={{ display: 'flex', gap: '12px' }}>
                   {humanPlayer.cards.map((card, idx) => (
                     <Card key={idx} card={card} revealed={true} size="lg" />
                   ))}
                 </div>
 
-                {/* Hand description */}
                 {humanPlayer.cards.length === 2 && (
-                  <div className="text-teal-300 font-medium">
+                  <div style={{ color: '#5eead4', fontWeight: 500 }}>
                     {getHandDescription(humanPlayer.cards)}
                   </div>
                 )}
 
-                {/* Decision indicator */}
                 {humanPlayer.decision && (
                   <div
-                    className={`text-sm font-bold px-4 py-1 rounded-full ${
-                      humanPlayer.decision === 'hold'
-                        ? 'bg-green-600/30 text-green-400 border border-green-500'
-                        : 'bg-red-600/30 text-red-400 border border-red-500'
-                    }`}
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      padding: '4px 16px',
+                      borderRadius: '20px',
+                      background:
+                        humanPlayer.decision === 'hold'
+                          ? 'rgba(34,197,94,0.2)'
+                          : 'rgba(239,68,68,0.2)',
+                      color: humanPlayer.decision === 'hold' ? '#4ade80' : '#f87171',
+                      border: `1px solid ${humanPlayer.decision === 'hold' ? '#22c55e' : '#ef4444'}`,
+                    }}
                   >
                     You chose to {humanPlayer.decision.toUpperCase()}
                   </div>
@@ -118,51 +267,65 @@ export function GameBoard() {
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {/* Buttons */}
             {isDecisionPhase && !humanDecided && (
-              <div className="flex gap-4">
+              <div style={{ display: 'flex', gap: '16px' }}>
                 <button
-                  className="btn-hold text-lg flex items-center gap-2"
                   onClick={() => makeHumanDecision('hold')}
+                  style={{
+                    padding: '16px 32px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    color: 'white',
+                    background: 'linear-gradient(135deg, #22c55e, #15803d)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(34,197,94,0.3)',
+                  }}
                 >
-                  <span>HOLD</span>
+                  HOLD
                 </button>
                 <button
-                  className="btn-drop text-lg flex items-center gap-2"
                   onClick={() => makeHumanDecision('drop')}
+                  style={{
+                    padding: '16px 32px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    color: 'white',
+                    background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(239,68,68,0.3)',
+                  }}
                 >
-                  <span>DROP</span>
+                  DROP
                 </button>
               </div>
             )}
 
             {isDecisionPhase && humanDecided && (
-              <div className="text-slate-400 text-sm">Waiting for countdown...</div>
+              <div style={{ color: '#94a3b8', fontSize: '14px' }}>Waiting for countdown...</div>
             )}
 
-            {/* Next Round Button */}
             {gamePhase === 'summary' && (
-              <button className="neu-button px-6 py-3 text-white font-bold" onClick={nextRound}>
+              <button
+                onClick={nextRound}
+                style={{
+                  padding: '12px 24px',
+                  fontWeight: 'bold',
+                  color: 'white',
+                  background: 'linear-gradient(135deg, #14b8a6, #0f766e)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(20,184,166,0.3)',
+                }}
+              >
                 NEXT ROUND
               </button>
             )}
-          </div>
-        )}
-
-        {/* Countdown Overlay */}
-        {isDecisionPhase && countdown !== null && countdown > 0 && <Countdown value={countdown} />}
-
-        {/* Phase indicator */}
-        {gamePhase === 'reveal' && (
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 text-teal-400 font-bold text-lg">
-            Revealing cards...
-          </div>
-        )}
-
-        {/* Round Result */}
-        {gamePhase === 'summary' && roundResult && (
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 neu-card p-4 max-w-md text-center">
-            <p className="text-lg font-bold text-amber-400">{roundResult}</p>
           </div>
         )}
       </div>

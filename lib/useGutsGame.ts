@@ -165,6 +165,8 @@ export function useGutsGame() {
   const [state, setState] = useState<GameState>(initialState);
   const deckRef = useRef<Card[]>([]);
   const revealTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownProcessedRef = useRef(false);
+  const revealCompleteProcessedRef = useRef(false);
 
   const activePlayers = state.players.filter(p => p.isActive);
   const humanPlayer = state.players.find(p => p.isHuman);
@@ -203,6 +205,8 @@ export function useGutsGame() {
   }, []);
 
   const startRound = useCallback(() => {
+    countdownProcessedRef.current = false;
+    revealCompleteProcessedRef.current = false;
     collectAntes();
     dealCards();
     setState(prev => ({
@@ -430,11 +434,13 @@ export function useGutsGame() {
   useEffect(() => {
     if (state.gamePhase === 'decision' && state.countdown !== null) {
       if (state.countdown > 0) {
+        countdownProcessedRef.current = false;
         const timer = setTimeout(() => {
           setState(prev => ({ ...prev, countdown: prev.countdown! - 1 }));
         }, 1000);
         return () => clearTimeout(timer);
-      } else {
+      } else if (!countdownProcessedRef.current) {
+        countdownProcessedRef.current = true;
         makeAIDecisions();
         // Set human to drop if no decision made
         setState(prev => ({
@@ -451,6 +457,7 @@ export function useGutsGame() {
   // Reveal animation effect
   useEffect(() => {
     if (state.gamePhase === 'reveal' && state.revealState.isRevealing) {
+      revealCompleteProcessedRef.current = false;
       revealTimeoutRef.current = setTimeout(() => {
         revealNextCard();
       }, 800);
@@ -459,7 +466,8 @@ export function useGutsGame() {
           clearTimeout(revealTimeoutRef.current);
         }
       };
-    } else if (state.gamePhase === 'reveal' && !state.revealState.isRevealing) {
+    } else if (state.gamePhase === 'reveal' && !state.revealState.isRevealing && !revealCompleteProcessedRef.current) {
+      revealCompleteProcessedRef.current = true;
       setTimeout(() => resolveRound(), 500);
     }
   }, [
