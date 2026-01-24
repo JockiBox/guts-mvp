@@ -437,63 +437,75 @@ export function useGutsGame() {
   }, [ghostCardIndex]);
 
   const startRevealPhase = useCallback(() => {
-    const holders = state.players.filter(p => p.isActive && p.decision === 'hold');
-    const droppers = state.players.filter(p => p.isActive && p.decision === 'drop');
+    // Use setState to read current state to avoid stale closure issues
+    setState(prev => {
+      const holders = prev.players.filter(p => p.isActive && p.decision === 'hold');
+      const droppers = prev.players.filter(p => p.isActive && p.decision === 'drop');
 
-    // If everyone dropped - add ghost hand and go to summary
-    if (holders.length === 0) {
-      addGhostHand();
-      setState(prev => ({
-        ...prev,
-        gamePhase: 'summary',
-        roundResult: `Everyone dropped! Ghost hand #${prev.ghostHands.length + 1} joins the game!`,
-      }));
-      return;
-    }
-
-    // If everyone held - add ghost hand, collect antes, deal new cards, new decision
-    if (droppers.length === 0) {
-      addGhostHand();
-      collectAntes();
-
-      // Reset for new decision round
-      deckRef.current = shuffleDeck(createDeck());
-      setState(prev => ({
-        ...prev,
-        players: prev.players.map(player => {
-          if (!player.isActive) {
-            return player;
-          }
-          const cards = [deckRef.current.pop()!, deckRef.current.pop()!];
-          return { ...player, cards, cardsRevealed: 0, decision: null };
-        }),
-        ghostHands: prev.ghostHands.map(ghost => ({
-          ...ghost,
+      // If everyone dropped - add ghost hand and go to summary
+      if (holders.length === 0) {
+        const newGhost: GhostHand = {
+          id: `ghost-${Date.now()}`,
           cards: [deckRef.current.pop()!, deckRef.current.pop()!],
           cardsRevealed: 0,
-        })),
-        gamePhase: 'decision',
-        countdown: 3,
-        roundResult: `Everyone held! Ghost hand #${prev.ghostHands.length + 1} added. New cards dealt!`,
-      }));
-      countdownProcessedRef.current = false;
-      return;
-    }
+        };
+        return {
+          ...prev,
+          ghostHands: [...prev.ghostHands, newGhost],
+          gamePhase: 'summary',
+          roundResult: `Everyone dropped! Ghost hand #${prev.ghostHands.length + 1} joins the game!`,
+        };
+      }
 
-    // Normal reveal: some held, some dropped
-    setState(prev => ({
-      ...prev,
-      gamePhase: 'reveal',
-      revealState: {
-        currentPlayerIndex: 0,
-        currentCardIndex: 0,
-        isRevealing: true,
-      },
-    }));
-    setRevealPhase('waiting');
-    setGhostCardIndex(0);
-    phaseProcessedRef.current = false;
-  }, [state.players, addGhostHand, collectAntes]);
+      // If everyone held - add ghost hand, collect antes, deal new cards, new decision
+      if (droppers.length === 0) {
+        const newGhost: GhostHand = {
+          id: `ghost-${Date.now()}`,
+          cards: [deckRef.current.pop()!, deckRef.current.pop()!],
+          cardsRevealed: 0,
+        };
+        const activeCount = prev.players.filter(p => p.isActive).length;
+
+        // Reset deck for new cards
+        deckRef.current = shuffleDeck(createDeck());
+
+        countdownProcessedRef.current = false;
+        return {
+          ...prev,
+          pot: prev.pot + activeCount,
+          players: prev.players.map(player => {
+            if (!player.isActive) {
+              return player;
+            }
+            const cards = [deckRef.current.pop()!, deckRef.current.pop()!];
+            return { ...player, cards, cardsRevealed: 0, decision: null, tokens: player.tokens - 1 };
+          }),
+          ghostHands: [...prev.ghostHands, newGhost].map(ghost => ({
+            ...ghost,
+            cards: [deckRef.current.pop()!, deckRef.current.pop()!],
+            cardsRevealed: 0,
+          })),
+          gamePhase: 'decision',
+          countdown: 3,
+          roundResult: `Everyone held! Ghost hand #${prev.ghostHands.length + 1} added. New cards dealt!`,
+        };
+      }
+
+      // Normal reveal: some held, some dropped
+      setRevealPhase('waiting');
+      setGhostCardIndex(0);
+      phaseProcessedRef.current = false;
+      return {
+        ...prev,
+        gamePhase: 'reveal',
+        revealState: {
+          currentPlayerIndex: 0,
+          currentCardIndex: 0,
+          isRevealing: true,
+        },
+      };
+    });
+  }, []);
 
   // Countdown effect
   useEffect(() => {
