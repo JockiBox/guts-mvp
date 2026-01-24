@@ -7,9 +7,7 @@ function getStripe() {
   if (!key) {
     throw new Error('Stripe secret key not configured');
   }
-  return new Stripe(key, {
-    apiVersion: '2025-12-15.clover',
-  });
+  return new Stripe(key);
 }
 
 export async function POST(request: NextRequest) {
@@ -59,9 +57,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
-    console.error('Checkout error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Checkout error:', errorMessage, error);
     return NextResponse.json(
-      { error: 'Failed to create checkout session' },
+      { error: 'Failed to create checkout session', details: errorMessage },
       { status: 500 }
     );
   }
