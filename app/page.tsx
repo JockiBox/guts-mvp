@@ -5,28 +5,35 @@ import { GameBoard } from '@/components/GameBoard';
 import LoadingScreen from '@/components/LoadingScreen';
 
 export default function Home() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [showContent, setShowContent] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+  const [loadingComplete, setLoadingComplete] = useState(false);
 
   useEffect(() => {
-    // Check if we've already shown the loading screen this session
-    const hasLoaded = sessionStorage.getItem('guts_loaded');
-    if (hasLoaded) {
-      setIsLoading(false);
-      setShowContent(true);
+    // Only show loading screen if we haven't shown it this session
+    if (typeof window !== 'undefined') {
+      const hasLoaded = sessionStorage.getItem('guts_loaded');
+      if (!hasLoaded) {
+        setShowLoading(true);
+      } else {
+        setLoadingComplete(true);
+      }
     }
   }, []);
 
   const handleLoadComplete = () => {
-    sessionStorage.setItem('guts_loaded', 'true');
-    setShowContent(true);
-    setTimeout(() => setIsLoading(false), 500);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('guts_loaded', 'true');
+    }
+    setLoadingComplete(true);
+    // Small delay before hiding loader to allow fade animation
+    setTimeout(() => setShowLoading(false), 600);
   };
 
+  // Always render GameBoard, loading screen overlays on top
   return (
     <>
-      {isLoading && <LoadingScreen onComplete={handleLoadComplete} minDuration={2500} />}
-      {showContent && <GameBoard />}
+      {showLoading && <LoadingScreen onComplete={handleLoadComplete} minDuration={2000} />}
+      {(loadingComplete || !showLoading) && <GameBoard />}
     </>
   );
 }
