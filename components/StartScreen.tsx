@@ -52,6 +52,7 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
   const [showMultiplayerGame, setShowMultiplayerGame] = useState(false);
   const { shouldShowTutorial } = useTutorial();
   const [guestTokens, setGuestTokens] = useState(25);
+  const [isReady, setIsReady] = useState(false);
 
   // Update guest tokens on mount
   useEffect(() => {
@@ -76,15 +77,13 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
     setStats(loadPlayerStats());
     setAchievements(getAllAchievements());
     setTrendingNames(isTrendingEnabled());
-    // Simulate minimum loading time for smooth UX
-    const timer = setTimeout(() => {
-      setInitialLoading(false);
-      // Show tutorial for new users
-      if (shouldShowTutorial()) {
-        setTimeout(() => setShowTutorial(true), 300);
-      }
-    }, 800);
-    return () => clearTimeout(timer);
+    // Mark as ready immediately
+    setInitialLoading(false);
+    setIsReady(true);
+    // Show tutorial for new users after a short delay
+    if (shouldShowTutorial()) {
+      setTimeout(() => setShowTutorial(true), 500);
+    }
   }, [shouldShowTutorial]);
 
   const toggleTrendingNames = () => {
@@ -123,58 +122,7 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
 
   const unlockedCount = achievements.filter(a => a.unlockedAt).length;
 
-  // Initial loading spinner
-  if (initialLoading) {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
-        }}
-      >
-        <div
-          style={{
-            fontSize: '64px',
-            marginBottom: '20px',
-            animation: 'spin-cards 1s ease-in-out infinite',
-          }}
-        >
-          🃏
-        </div>
-        <h1
-          style={{
-            fontSize: '36px',
-            fontWeight: 900,
-            background: 'linear-gradient(135deg, #2dd4bf, #22d3ee)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            marginBottom: '8px',
-          }}
-        >
-          GUTS
-        </h1>
-        <div
-          style={{
-            color: '#64748b',
-            fontSize: '14px',
-          }}
-        >
-          Loading...
-        </div>
-        <style jsx>{`
-          @keyframes spin-cards {
-            0%, 100% { transform: rotateY(0deg) scale(1); }
-            50% { transform: rotateY(180deg) scale(1.1); }
-          }
-        `}</style>
-      </div>
-    );
-  }
-
+  
   return (
     <div
       style={{
