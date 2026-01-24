@@ -1,5 +1,3 @@
-'use client';
-
 // Shop items and pricing
 
 export interface ShopItem {
