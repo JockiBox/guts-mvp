@@ -790,6 +790,16 @@ export function useGutsGame() {
     setNewAchievements([]);
   }, []);
 
+  // Set human player tokens (for syncing with user account)
+  const setHumanTokens = useCallback((tokens: number) => {
+    setState(prev => ({
+      ...prev,
+      players: prev.players.map(player =>
+        player.isHuman ? { ...player, tokens } : player
+      ),
+    }));
+  }, []);
+
   return {
     state,
     humanPlayer,
@@ -805,5 +815,6 @@ export function useGutsGame() {
     setDifficulty,
     newAchievements,
     clearNewAchievements,
+    setHumanTokens,
   };
 }

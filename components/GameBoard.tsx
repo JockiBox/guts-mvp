@@ -5,8 +5,13 @@ import { Player } from './Player';
 import { Pot } from './Pot';
 import { Card } from './Card';
 import { StartScreen } from './StartScreen';
+import { AuthModal } from './AuthModal';
+import { ShopModal } from './ShopModal';
+import { ProfileModal } from './ProfileModal';
 import { getHandDescription } from '@/lib/useGutsGame';
 import { useState, useEffect, useRef } from 'react';
+import { useUser } from '@/lib/useUser';
+import { recordGameResult } from '@/lib/supabase';
 import {
   playClick,
   playCardFlip,
@@ -84,8 +89,53 @@ function Particles({ active, type }: { active: boolean; type: 'win' | 'sixnine' 
   );
 }
 
+// Daily reward claimed toast
+function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak: number; onClose: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: '80px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.95), rgba(217, 119, 6, 0.95))',
+        borderRadius: '12px',
+        padding: '16px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        zIndex: 400,
+        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4)',
+        animation: 'slide-down 0.4s ease-out',
+      }}
+    >
+      <span style={{ fontSize: '32px' }}>🎁</span>
+      <div>
+        <div style={{ color: '#0f172a', fontSize: '16px', fontWeight: '700' }}>
+          +{tokens} Tokens Claimed!
+        </div>
+        <div style={{ color: 'rgba(15, 23, 42, 0.7)', fontSize: '12px' }}>
+          Day {streak} streak bonus
+        </div>
+      </div>
+      <style jsx>{`
+        @keyframes slide-down {
+          from { transform: translateX(-50%) translateY(-100px); opacity: 0; }
+          to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 export function GameBoard() {
-  const { state, humanPlayer, startGame, makeHumanDecision, nextRound, playerCount, setPlayerCount, heartProfile, isProfileHearted, difficulty, setDifficulty, newAchievements, clearNewAchievements } = useGutsGame();
+  const { user, loading: userLoading, canClaimDaily, fetchProfile, claimDaily, buyItem, purchaseTokens } = useUser();
+  const { state, humanPlayer, startGame, makeHumanDecision, nextRound, playerCount, setPlayerCount, heartProfile, isProfileHearted, difficulty, setDifficulty, newAchievements, clearNewAchievements, setHumanTokens } = useGutsGame();
   const {
     players,
     pot,
@@ -98,6 +148,12 @@ export function GameBoard() {
     roundNumber,
   } = state;
 
+  // Modal states
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showShopModal, setShowShopModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // UI states
   const [shake, setShake] = useState(false);
   const [showParticles, setShowParticles] = useState<'win' | 'sixnine' | 'lose' | null>(null);
   const [flashColor, setFlashColor] = useState<string | null>(null);
@@ -105,9 +161,38 @@ export function GameBoard() {
   const [soundOn, setSoundOn] = useState(true);
   const [achievementPopup, setAchievementPopup] = useState<Achievement | null>(null);
   const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'copied'>('idle');
+  const [dailyRewardToast, setDailyRewardToast] = useState<{ tokens: number; streak: number } | null>(null);
+
   const lastCountdown = useRef<number | null>(null);
   const lastPhase = useRef<string>('start');
   const revealSoundPlayed = useRef(false);
+  const gameResultRecorded = useRef(false);
+
+  // Sync user tokens with game state
+  useEffect(() => {
+    if (user && setHumanTokens) {
+      setHumanTokens(user.tokens);
+    }
+  }, [user, setHumanTokens]);
+
+  // Record game results to database
+  useEffect(() => {
+    if (gamePhase === 'summary' && humanPlayer && user && !gameResultRecorded.current) {
+      gameResultRecorded.current = true;
+      const won = winners.includes(humanPlayer.id);
+      const tokensChange = won ? pot : losers.includes(humanPlayer.id) ? -pot : 0;
+
+      if (tokensChange !== 0) {
+        recordGameResult(user.id, won, tokensChange).then(() => {
+          fetchProfile(); // Refresh user data
+        });
+      }
+    }
+
+    if (gamePhase === 'decision') {
+      gameResultRecorded.current = false;
+    }
+  }, [gamePhase, humanPlayer, user, winners, losers, pot, fetchProfile]);
 
   // Initialize sound state from localStorage
   useEffect(() => {
@@ -120,6 +205,15 @@ export function GameBoard() {
     setSoundOn(newState);
     setSoundEnabled(newState);
     if (newState) playClick();
+  };
+
+  // Handle daily reward claim
+  const handleClaimDaily = async () => {
+    const result = await claimDaily();
+    if (result?.success) {
+      setDailyRewardToast({ tokens: result.tokens, streak: result.streak });
+      playTokens();
+    }
   };
 
   // Share result
@@ -236,7 +330,6 @@ export function GameBoard() {
   // Sound for card reveals
   useEffect(() => {
     if (gamePhase === 'reveal' || gamePhase === 'summary') {
-      // Check if any player just had cards revealed
       const anyRevealed = players.some(p => p.cardsRevealed > 0);
       const ghostRevealed = ghostHands.some(g => g.cardsRevealed > 0);
       if ((anyRevealed || ghostRevealed) && !revealSoundPlayed.current) {
@@ -256,11 +349,9 @@ export function GameBoard() {
   // Show achievement popups
   useEffect(() => {
     if (newAchievements.length > 0) {
-      // Show first achievement
       setAchievementPopup(newAchievements[0]);
-      playWin(); // Play a celebratory sound
+      playWin();
 
-      // Auto-dismiss after 4 seconds
       const timer = setTimeout(() => {
         setAchievementPopup(null);
         clearNewAchievements();
@@ -273,7 +364,6 @@ export function GameBoard() {
   // Check for dramatic 69 reveal during reveal/summary phase
   useEffect(() => {
     if (gamePhase === 'reveal' || gamePhase === 'summary') {
-      // Check all players with revealed cards for 69
       for (const player of players) {
         if (player.cardsRevealed === 2 && player.cards.length === 2) {
           const ranks = [player.cards[0].rank, player.cards[1].rank];
@@ -292,7 +382,6 @@ export function GameBoard() {
           }
         }
       }
-      // Check ghost hands too
       for (const ghost of ghostHands) {
         if (ghost.cardsRevealed === 2 && ghost.cards.length === 2) {
           const ranks = [ghost.cards[0].rank, ghost.cards[1].rank];
@@ -314,16 +403,71 @@ export function GameBoard() {
     }
   }, [gamePhase, players, ghostHands]);
 
+  // Get display tokens (from user if logged in, otherwise from game state)
+  const displayTokens = user?.tokens ?? humanPlayer?.tokens ?? 100;
+
   if (gamePhase === 'start') {
     return (
-      <StartScreen
-        onStart={startGame}
-        resultMessage={roundResult}
-        playerCount={playerCount}
-        setPlayerCount={setPlayerCount}
-        difficulty={difficulty}
-        setDifficulty={setDifficulty}
-      />
+      <>
+        {/* Top Header Bar - Always visible */}
+        <UserHeader
+          user={user}
+          userLoading={userLoading}
+          canClaimDaily={canClaimDaily}
+          onClaimDaily={handleClaimDaily}
+          onAuthClick={() => setShowAuthModal(true)}
+          onShopClick={() => setShowShopModal(true)}
+          onProfileClick={() => setShowProfileModal(true)}
+          soundOn={soundOn}
+          onToggleSound={toggleSound}
+        />
+
+        <StartScreen
+          onStart={startGame}
+          resultMessage={roundResult}
+          playerCount={playerCount}
+          setPlayerCount={setPlayerCount}
+          difficulty={difficulty}
+          setDifficulty={setDifficulty}
+        />
+
+        {/* Modals */}
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => fetchProfile()}
+        />
+        <ShopModal
+          isOpen={showShopModal}
+          onClose={() => setShowShopModal(false)}
+          user={user}
+          onPurchaseTokens={purchaseTokens}
+          onBuyItem={buyItem}
+          onClaimDaily={handleClaimDaily}
+          canClaimDaily={canClaimDaily}
+        />
+        {user && (
+          <ProfileModal
+            isOpen={showProfileModal}
+            onClose={() => setShowProfileModal(false)}
+            user={user}
+            onUpdate={() => fetchProfile()}
+            onSignOut={() => {
+              setShowProfileModal(false);
+              fetchProfile();
+            }}
+          />
+        )}
+
+        {/* Daily reward toast */}
+        {dailyRewardToast && (
+          <DailyRewardToast
+            tokens={dailyRewardToast.tokens}
+            streak={dailyRewardToast.streak}
+            onClose={() => setDailyRewardToast(null)}
+          />
+        )}
+      </>
     );
   }
 
@@ -369,7 +513,7 @@ export function GameBoard() {
         <div
           style={{
             position: 'fixed',
-            top: '20px',
+            top: '70px',
             left: '50%',
             transform: 'translateX(-50%)',
             background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.95), rgba(15, 118, 110, 0.95))',
@@ -397,6 +541,15 @@ export function GameBoard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Daily reward toast */}
+      {dailyRewardToast && (
+        <DailyRewardToast
+          tokens={dailyRewardToast.tokens}
+          streak={dailyRewardToast.streak}
+          onClose={() => setDailyRewardToast(null)}
+        />
       )}
 
       {/* DRAMATIC 69 REVEAL OVERLAY */}
@@ -518,35 +671,120 @@ export function GameBoard() {
           >
             {soundOn ? '🔊' : '🔇'}
           </button>
-        </div>
 
-        {/* Pot with dramatic styling */}
-        <div
-          style={{
-            background: 'linear-gradient(135deg, rgba(251,191,36,0.2), rgba(217,119,6,0.2))',
-            borderRadius: '8px',
-            padding: '6px 16px',
-            border: '2px solid #fbbf24',
-            boxShadow: '0 0 20px rgba(251,191,36,0.3)',
-            animation: pot > 20
-              ? 'pot-glow-intense 1.5s ease-in-out infinite'
-              : pot > 10
-                ? 'pulse-gold 1s ease-in-out infinite'
-                : 'none',
-            transition: 'all 0.3s ease',
-          }}
-        >
-          <span
+          {/* Shop Button */}
+          <button
+            onClick={() => {
+              playClick();
+              setShowShopModal(true);
+            }}
             style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              border: '2px solid #fbbf24',
+              backdropFilter: 'blur(8px)',
+              cursor: 'pointer',
+              fontSize: '14px',
               color: '#fbbf24',
-              fontWeight: 'bold',
-              fontSize: pot > 30 ? '24px' : pot > 15 ? '20px' : '18px',
-              textShadow: pot > 20 ? '0 0 10px rgba(251,191,36,0.5)' : 'none',
-              transition: 'all 0.3s ease',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
             }}
           >
-            POT: {pot}
-          </span>
+            🛒 Shop
+          </button>
+        </div>
+
+        {/* User Token Display & Auth */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Token display */}
+          <div
+            style={{
+              background: 'linear-gradient(135deg, rgba(251,191,36,0.2), rgba(217,119,6,0.2))',
+              borderRadius: '8px',
+              padding: '6px 16px',
+              border: '2px solid #fbbf24',
+              boxShadow: '0 0 20px rgba(251,191,36,0.3)',
+              animation: pot > 20
+                ? 'pot-glow-intense 1.5s ease-in-out infinite'
+                : pot > 10
+                  ? 'pulse-gold 1s ease-in-out infinite'
+                  : 'none',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <span style={{ fontSize: '14px' }}>🪙</span>
+            <span
+              style={{
+                color: '#fbbf24',
+                fontWeight: 'bold',
+                fontSize: '16px',
+              }}
+            >
+              {displayTokens.toLocaleString()}
+            </span>
+          </div>
+
+          {/* Pot display */}
+          <div
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 14px',
+              border: '2px solid #334155',
+            }}
+          >
+            <span style={{ color: '#94a3b8', fontSize: '12px' }}>POT </span>
+            <span style={{ color: '#22c55e', fontWeight: 'bold', fontSize: '16px' }}>{pot}</span>
+          </div>
+
+          {/* User/Auth button */}
+          {user ? (
+            <button
+              onClick={() => {
+                playClick();
+                setShowProfileModal(true);
+              }}
+              style={{
+                background: user.avatar_color || '#14b8a6',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                border: '2px solid rgba(255,255,255,0.3)',
+                cursor: 'pointer',
+                fontSize: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {user.avatar_emoji}
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                playClick();
+                setShowAuthModal(true);
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '13px',
+                color: 'white',
+                fontWeight: '600',
+              }}
+            >
+              Sign In
+            </button>
+          )}
         </div>
       </div>
 
@@ -802,22 +1040,26 @@ export function GameBoard() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                   {/* Player info */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontWeight: 'bold', color: '#14b8a6', fontSize: '18px' }}>
-                      {humanPlayer.name}
-                    </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div
-                        style={{
-                          width: '22px',
-                          height: '22px',
-                          borderRadius: '50%',
-                          background: 'linear-gradient(135deg, #fbbf24, #d97706)',
-                          border: '2px solid #92400e',
-                          boxShadow: '0 0 10px rgba(251,191,36,0.5)',
-                        }}
-                      />
-                      <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#fbbf24', fontSize: '20px' }}>
-                        {humanPlayer.tokens}
+                      {user && (
+                        <div
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            background: user.avatar_color,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '14px',
+                            border: '2px solid rgba(255,255,255,0.3)',
+                          }}
+                        >
+                          {user.avatar_emoji}
+                        </div>
+                      )}
+                      <span style={{ fontWeight: 'bold', color: '#14b8a6', fontSize: '18px' }}>
+                        {user?.username || humanPlayer.name}
                       </span>
                     </div>
                   </div>
@@ -1021,6 +1263,34 @@ export function GameBoard() {
         </div>
       </div>
 
+      {/* Modals */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={() => fetchProfile()}
+      />
+      <ShopModal
+        isOpen={showShopModal}
+        onClose={() => setShowShopModal(false)}
+        user={user}
+        onPurchaseTokens={purchaseTokens}
+        onBuyItem={buyItem}
+        onClaimDaily={handleClaimDaily}
+        canClaimDaily={canClaimDaily}
+      />
+      {user && (
+        <ProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          user={user}
+          onUpdate={() => fetchProfile()}
+          onSignOut={() => {
+            setShowProfileModal(false);
+            fetchProfile();
+          }}
+        />
+      )}
+
       {/* All animations */}
       <style jsx global>{`
         @keyframes shake {
@@ -1151,6 +1421,216 @@ export function GameBoard() {
             font-size: 24px !important;
             min-width: 140px !important;
           }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// User Header Component for start screen
+function UserHeader({
+  user,
+  userLoading,
+  canClaimDaily,
+  onClaimDaily,
+  onAuthClick,
+  onShopClick,
+  onProfileClick,
+  soundOn,
+  onToggleSound,
+}: {
+  user: ReturnType<typeof useUser>['user'];
+  userLoading: boolean;
+  canClaimDaily: boolean;
+  onClaimDaily: () => void;
+  onAuthClick: () => void;
+  onShopClick: () => void;
+  onProfileClick: () => void;
+  soundOn: boolean;
+  onToggleSound: () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '56px',
+        background: 'rgba(15, 23, 42, 0.95)',
+        borderBottom: '1px solid #334155',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 16px',
+        zIndex: 100,
+        backdropFilter: 'blur(8px)',
+      }}
+    >
+      {/* Left side - Logo */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <span style={{ fontSize: '24px' }}>🃏</span>
+        <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '20px' }}>GUTS</span>
+      </div>
+
+      {/* Right side - User controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Sound toggle */}
+        <button
+          onClick={onToggleSound}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            fontSize: '20px',
+            cursor: 'pointer',
+            padding: '4px',
+          }}
+        >
+          {soundOn ? '🔊' : '🔇'}
+        </button>
+
+        {userLoading ? (
+          <div style={{ color: '#64748b', fontSize: '14px' }}>Loading...</div>
+        ) : user ? (
+          <>
+            {/* Daily reward indicator */}
+            {canClaimDaily && (
+              <button
+                onClick={() => {
+                  playClick();
+                  onClaimDaily();
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #fbbf24, #d97706)',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  color: '#0f172a',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  animation: 'pulse 2s ease-in-out infinite',
+                }}
+              >
+                🎁 Claim Daily
+              </button>
+            )}
+
+            {/* Token balance */}
+            <div
+              style={{
+                background: 'rgba(251, 191, 36, 0.15)',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                border: '1px solid rgba(251, 191, 36, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span style={{ fontSize: '14px' }}>🪙</span>
+              <span style={{ color: '#fbbf24', fontWeight: '600', fontSize: '14px' }}>
+                {user.tokens.toLocaleString()}
+              </span>
+            </div>
+
+            {/* Shop button */}
+            <button
+              onClick={() => {
+                playClick();
+                onShopClick();
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '13px',
+                color: 'white',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              🛒 Shop
+            </button>
+
+            {/* User avatar */}
+            <button
+              onClick={() => {
+                playClick();
+                onProfileClick();
+              }}
+              style={{
+                background: user.avatar_color || '#14b8a6',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                border: '2px solid rgba(255,255,255,0.3)',
+                cursor: 'pointer',
+                fontSize: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {user.avatar_emoji}
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Shop button (guest) */}
+            <button
+              onClick={() => {
+                playClick();
+                onShopClick();
+              }}
+              style={{
+                background: 'rgba(30, 41, 59, 0.9)',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                border: '1px solid #334155',
+                cursor: 'pointer',
+                fontSize: '13px',
+                color: '#94a3b8',
+                fontWeight: '600',
+              }}
+            >
+              🛒 Shop
+            </button>
+
+            {/* Sign in button */}
+            <button
+              onClick={() => {
+                playClick();
+                onAuthClick();
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+                borderRadius: '8px',
+                padding: '8px 16px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '14px',
+                color: 'white',
+                fontWeight: '600',
+              }}
+            >
+              Sign In
+            </button>
+          </>
+        )}
+      </div>
+
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
         }
       `}</style>
     </div>
