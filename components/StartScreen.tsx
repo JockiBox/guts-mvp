@@ -7,61 +7,145 @@ interface StartScreenProps {
 
 export function StartScreen({ onStart, resultMessage }: StartScreenProps) {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="neu-card p-8 max-w-lg w-full text-center">
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+      }}
+    >
+      <div
+        style={{
+          background: '#1e293b',
+          borderRadius: '16px',
+          padding: '32px',
+          maxWidth: '500px',
+          width: '100%',
+          textAlign: 'center',
+          border: '1px solid #334155',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+        }}
+      >
         {/* Title */}
-        <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-cyan-300 mb-2">
+        <h1
+          style={{
+            fontSize: '48px',
+            fontWeight: 900,
+            background: 'linear-gradient(135deg, #2dd4bf, #22d3ee)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            marginBottom: '8px',
+          }}
+        >
           GUTS
         </h1>
-        <p className="text-slate-400 mb-6">High-Stakes 2-Card Poker Showdown</p>
+        <p style={{ color: '#94a3b8', marginBottom: '24px' }}>
+          High-Stakes 2-Card Poker Showdown
+        </p>
 
         {resultMessage && (
-          <div className="neu-card-inset p-4 mb-6 text-amber-400 font-bold">{resultMessage}</div>
+          <div
+            style={{
+              background: '#0f172a',
+              borderRadius: '12px',
+              padding: '16px',
+              marginBottom: '24px',
+              color: '#fbbf24',
+              fontWeight: 'bold',
+              border: '1px solid #334155',
+            }}
+          >
+            {resultMessage}
+          </div>
         )}
 
         {/* Rules */}
-        <div className="neu-card-inset p-4 mb-6 text-left">
-          <h2 className="font-bold text-teal-400 mb-3">How to Play</h2>
-          <ol className="text-sm text-slate-300 space-y-2">
-            <li>
-              <span className="text-teal-400 font-bold">1.</span> Each player antes 1 token and
-              receives 2 cards
+        <div
+          style={{
+            background: '#0f172a',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '24px',
+            textAlign: 'left',
+            border: '1px solid #334155',
+          }}
+        >
+          <h2
+            style={{
+              fontWeight: 'bold',
+              color: '#14b8a6',
+              marginBottom: '12px',
+              fontSize: '16px',
+            }}
+          >
+            How to Play
+          </h2>
+          <ol style={{ fontSize: '14px', color: '#cbd5e1', margin: 0, padding: 0, listStyle: 'none' }}>
+            <li style={{ marginBottom: '8px' }}>
+              <span style={{ color: '#14b8a6', fontWeight: 'bold' }}>1.</span> Each player antes 1
+              token and receives 2 cards
             </li>
-            <li>
-              <span className="text-teal-400 font-bold">2.</span> During the 3-second countdown,
-              choose to <span className="text-green-400">HOLD</span> or{' '}
-              <span className="text-red-400">DROP</span>
+            <li style={{ marginBottom: '8px' }}>
+              <span style={{ color: '#14b8a6', fontWeight: 'bold' }}>2.</span> During the 3-second
+              countdown, choose to <span style={{ color: '#4ade80' }}>HOLD</span> or{' '}
+              <span style={{ color: '#f87171' }}>DROP</span>
             </li>
-            <li>
-              <span className="text-teal-400 font-bold">3.</span> If you{' '}
-              <span className="text-green-400">HOLD</span>, you compete for the pot
+            <li style={{ marginBottom: '8px' }}>
+              <span style={{ color: '#14b8a6', fontWeight: 'bold' }}>3.</span> If you{' '}
+              <span style={{ color: '#4ade80' }}>HOLD</span>, you compete for the pot
             </li>
-            <li>
-              <span className="text-teal-400 font-bold">4.</span> Winner takes the pot, losers{' '}
-              <span className="text-amber-400">match the pot</span>
+            <li style={{ marginBottom: '8px' }}>
+              <span style={{ color: '#14b8a6', fontWeight: 'bold' }}>4.</span> Winner takes the pot,
+              losers <span style={{ color: '#fbbf24' }}>match the pot</span>
             </li>
-            <li>
-              <span className="text-teal-400 font-bold">5.</span> If everyone drops, a{' '}
-              <span className="text-purple-400">Ghost Hand</span> joins!
+            <li style={{ marginBottom: '0' }}>
+              <span style={{ color: '#14b8a6', fontWeight: 'bold' }}>5.</span> If everyone drops, a{' '}
+              <span style={{ color: '#c084fc' }}>Ghost Hand</span> joins!
             </li>
           </ol>
         </div>
 
         {/* Hand Rankings */}
-        <div className="neu-card-inset p-4 mb-6 text-left">
-          <h2 className="font-bold text-teal-400 mb-3">Hand Rankings</h2>
-          <div className="text-sm text-slate-300 space-y-1">
-            <div className="flex justify-between">
-              <span className="text-amber-400">1. Pair</span>
-              <span className="text-slate-500">Two of same rank</span>
+        <div
+          style={{
+            background: '#0f172a',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '24px',
+            textAlign: 'left',
+            border: '1px solid #334155',
+          }}
+        >
+          <h2
+            style={{
+              fontWeight: 'bold',
+              color: '#14b8a6',
+              marginBottom: '12px',
+              fontSize: '16px',
+            }}
+          >
+            Hand Rankings
+          </h2>
+          <div style={{ fontSize: '14px', color: '#cbd5e1' }}>
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}
+            >
+              <span style={{ color: '#fbbf24' }}>1. Pair</span>
+              <span style={{ color: '#64748b' }}>Two of same rank</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-amber-400">2. Flush</span>
-              <span className="text-slate-500">Two of same suit</span>
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}
+            >
+              <span style={{ color: '#fbbf24' }}>2. Flush</span>
+              <span style={{ color: '#64748b' }}>Two of same suit</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-amber-400">3. High Card</span>
-              <span className="text-slate-500">Highest card wins</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#fbbf24' }}>3. High Card</span>
+              <span style={{ color: '#64748b' }}>Highest card wins</span>
             </div>
           </div>
         </div>
@@ -69,7 +153,27 @@ export function StartScreen({ onStart, resultMessage }: StartScreenProps) {
         {/* Start Button */}
         <button
           onClick={onStart}
-          className="neu-button px-8 py-4 text-xl font-bold text-white w-full"
+          style={{
+            padding: '16px 32px',
+            fontSize: '20px',
+            fontWeight: 'bold',
+            color: 'white',
+            width: '100%',
+            background: 'linear-gradient(135deg, #14b8a6, #0f766e)',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(20, 184, 166, 0.4)',
+            transition: 'transform 0.2s, box-shadow 0.2s',
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(20, 184, 166, 0.5)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 14px rgba(20, 184, 166, 0.4)';
+          }}
         >
           {resultMessage ? 'PLAY AGAIN' : 'START GAME'}
         </button>

@@ -11,24 +11,67 @@ interface PotProps {
 }
 
 export function Pot({ amount, ghostHands, winners, showGhostCards }: PotProps) {
+  const tokenStyle: React.CSSProperties = {
+    width: 24,
+    height: 24,
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #fbbf24, #d97706)',
+    border: '2px solid #b45309',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+  };
+
   return (
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-4">
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '16px',
+      }}
+    >
       {/* Pot Display */}
-      <div className="pot-area w-40 h-40 flex flex-col items-center justify-center">
-        <div className="flex items-center gap-2">
-          <div className="token" />
-          <div className="token -ml-3" />
-          <div className="token -ml-3" />
+      <div
+        style={{
+          width: 160,
+          height: 160,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'radial-gradient(ellipse at center, rgba(20,184,166,0.15) 0%, transparent 70%)',
+          borderRadius: '50%',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={tokenStyle} />
+          <div style={{ ...tokenStyle, marginLeft: -12 }} />
+          <div style={{ ...tokenStyle, marginLeft: -12 }} />
         </div>
-        <div className="mt-2 text-3xl font-black text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.5)]">
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 32,
+            fontWeight: 900,
+            color: '#fbbf24',
+            textShadow: '0 0 10px rgba(251,191,36,0.5)',
+          }}
+        >
           {amount}
         </div>
-        <div className="text-sm text-slate-400">POT</div>
+        <div style={{ fontSize: 14, color: '#94a3b8' }}>POT</div>
       </div>
 
       {/* Ghost Hands */}
       {ghostHands.length > 0 && (
-        <div className="flex gap-2 flex-wrap justify-center max-w-md">
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            maxWidth: 400,
+          }}
+        >
           {ghostHands.map((ghost, idx) => (
             <GhostHand
               key={ghost.id}
