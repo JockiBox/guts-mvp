@@ -425,3 +425,7 @@ export function playRevealStart() {
     osc.stop(ctx.currentTime + 0.35);
   } catch (e) {}
 }
+
+// Aliases for multiplayer sounds
+export const playSuccess = playWin;
+export const playError = playLose;

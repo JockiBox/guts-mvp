@@ -11,6 +11,11 @@ import { useUser } from '@/lib/useUser';
 import { AuthModal } from './AuthModal';
 import { ShopModal } from './ShopModal';
 import { ProfileModal } from './ProfileModal';
+import { Tutorial, useTutorial } from './Tutorial';
+import { MultiplayerLobby } from './MultiplayerLobby';
+import { MultiplayerRoom } from './MultiplayerRoom';
+import { FriendsModal } from './FriendsModal';
+import type { MultiplayerRoom as MultiplayerRoomType, RoomPlayer } from '@/lib/multiplayer';
 
 interface StartScreenProps {
   onStart: (playerCount: number) => void;
@@ -35,6 +40,12 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
   const [dailyRewardClaimed, setDailyRewardClaimed] = useState<{ tokens: number; streak: number } | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [showOutOfTokens, setShowOutOfTokens] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showMultiplayerLobby, setShowMultiplayerLobby] = useState(false);
+  const [showFriendsModal, setShowFriendsModal] = useState(false);
+  const [currentRoom, setCurrentRoom] = useState<MultiplayerRoomType | null>(null);
+  const [roomPlayers, setRoomPlayers] = useState<RoomPlayer[]>([]);
+  const { shouldShowTutorial } = useTutorial();
 
   useEffect(() => {
     setTopProfiles(getTop10Profiles());
@@ -43,9 +54,15 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
     setAchievements(getAllAchievements());
     setTrendingNames(isTrendingEnabled());
     // Simulate minimum loading time for smooth UX
-    const timer = setTimeout(() => setInitialLoading(false), 800);
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+      // Show tutorial for new users
+      if (shouldShowTutorial()) {
+        setTimeout(() => setShowTutorial(true), 300);
+      }
+    }, 800);
     return () => clearTimeout(timer);
-  }, []);
+  }, [shouldShowTutorial]);
 
   const toggleTrendingNames = () => {
     const newValue = !trendingNames;
@@ -350,6 +367,85 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
         {/* Play Tab */}
         {activeTab === 'play' && (
           <>
+            {/* Game Mode Selector */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '10px',
+                marginBottom: '16px',
+              }}
+            >
+              <button
+                onClick={() => {
+                  playClick();
+                  if (!user) {
+                    setShowAuthModal(true);
+                  } else {
+                    setShowMultiplayerLobby(true);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '14px 12px',
+                  borderRadius: '12px',
+                  border: '2px solid #22c55e',
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.05))',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: '24px', marginBottom: '4px' }}>🎮</div>
+                <div style={{ color: '#4ade80', fontWeight: '700', fontSize: '14px' }}>Multiplayer</div>
+                <div style={{ color: '#64748b', fontSize: '10px' }}>Play vs humans</div>
+              </button>
+
+              <Link
+                href="/tournaments"
+                style={{
+                  flex: 1,
+                  padding: '14px 12px',
+                  borderRadius: '12px',
+                  border: '2px solid #fbbf24',
+                  background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(217, 119, 6, 0.05))',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  display: 'block',
+                }}
+                onClick={() => playClick()}
+              >
+                <div style={{ fontSize: '24px', marginBottom: '4px' }}>🏆</div>
+                <div style={{ color: '#fbbf24', fontWeight: '700', fontSize: '14px' }}>Tournaments</div>
+                <div style={{ color: '#64748b', fontSize: '10px' }}>Win big prizes</div>
+              </Link>
+            </div>
+
+            {/* Solo Play Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Solo Practice
+              </div>
+              <button
+                onClick={() => {
+                  playClick();
+                  setShowTutorial(true);
+                }}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #334155',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  color: '#64748b',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>❓</span> How to Play
+              </button>
+            </div>
+
             {/* Difficulty Selector */}
             <div
               style={{
@@ -776,6 +872,32 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
           🏆 Leaderboard
         </Link>
         <span style={{ color: '#334155' }}>|</span>
+        <button
+          onClick={() => {
+            playClick();
+            if (user) {
+              setShowFriendsModal(true);
+            } else {
+              setShowAuthModal(true);
+            }
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#22c55e',
+            textDecoration: 'none',
+            fontSize: '12px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: 0,
+          }}
+        >
+          👥 Friends
+        </button>
+        <span style={{ color: '#334155' }}>|</span>
         <Link
           href="/terms"
           style={{
@@ -829,6 +951,51 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
             fetchProfile();
             setShowProfileModal(false);
           }}
+        />
+      )}
+
+      {/* Tutorial Modal */}
+      <Tutorial
+        isOpen={showTutorial}
+        onClose={() => setShowTutorial(false)}
+        onComplete={() => setShowTutorial(false)}
+      />
+
+      {/* Multiplayer Lobby */}
+      {showMultiplayerLobby && user && (
+        <MultiplayerLobby
+          user={user}
+          onJoinRoom={(room) => {
+            setCurrentRoom(room);
+            setShowMultiplayerLobby(false);
+          }}
+          onClose={() => setShowMultiplayerLobby(false)}
+        />
+      )}
+
+      {/* Multiplayer Room */}
+      {currentRoom && user && (
+        <MultiplayerRoom
+          room={currentRoom}
+          user={user}
+          onLeave={() => {
+            setCurrentRoom(null);
+            setRoomPlayers([]);
+          }}
+          onGameStart={(room, players) => {
+            setRoomPlayers(players);
+            // TODO: Transition to multiplayer game mode
+            console.log('Game starting!', room, players);
+          }}
+        />
+      )}
+
+      {/* Friends Modal */}
+      {user && (
+        <FriendsModal
+          isOpen={showFriendsModal}
+          onClose={() => setShowFriendsModal(false)}
+          user={user}
         />
       )}
 

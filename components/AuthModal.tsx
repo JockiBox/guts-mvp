@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { signUp, signIn } from '@/lib/supabase';
-import { playClick } from '@/lib/sounds';
+import { signUp, signIn, applyReferralCode } from '@/lib/supabase';
+import { playClick, playTokens } from '@/lib/sounds';
+import Link from 'next/link';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -15,8 +16,10 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [referralSuccess, setReferralSuccess] = useState(false);
 
   if (!isOpen) return null;
 
@@ -24,6 +27,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setReferralSuccess(false);
 
     try {
       if (mode === 'signup') {
@@ -32,7 +36,16 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
           setLoading(false);
           return;
         }
-        await signUp(email, password, username);
+        const { user } = await signUp(email, password, username);
+
+        // Apply referral code if provided
+        if (referralCode.trim() && user) {
+          const referralResult = await applyReferralCode(user.id, referralCode.trim().toUpperCase());
+          if (referralResult.success) {
+            setReferralSuccess(true);
+            playTokens();
+          }
+        }
       } else {
         await signIn(email, password);
       }
@@ -70,6 +83,8 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
           width: '100%',
           border: '1px solid #334155',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          maxHeight: '90vh',
+          overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -144,6 +159,23 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
           </div>
         )}
 
+        {referralSuccess && (
+          <div
+            style={{
+              background: 'rgba(34, 197, 94, 0.1)',
+              border: '1px solid rgba(34, 197, 94, 0.3)',
+              borderRadius: '8px',
+              padding: '10px',
+              marginBottom: '16px',
+              color: '#4ade80',
+              fontSize: '13px',
+              textAlign: 'center',
+            }}
+          >
+            🎉 Referral bonus! +50 tokens added!
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           {mode === 'signup' && (
             <div style={{ marginBottom: '12px' }}>
@@ -197,7 +229,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
             />
           </div>
 
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: mode === 'signup' ? '12px' : '20px' }}>
             <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '4px' }}>
               Password
             </label>
@@ -221,6 +253,52 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
               placeholder="••••••••"
             />
           </div>
+
+          {/* Referral Code Field */}
+          {mode === 'signup' && (
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '4px' }}>
+                Referral Code <span style={{ color: '#64748b' }}>(optional)</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  maxLength={8}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    paddingLeft: '36px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    background: '#0f172a',
+                    color: 'white',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    textTransform: 'uppercase',
+                    letterSpacing: '2px',
+                  }}
+                  placeholder="ABCD1234"
+                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: '14px',
+                  }}
+                >
+                  🎁
+                </span>
+              </div>
+              <p style={{ color: '#64748b', fontSize: '11px', marginTop: '4px' }}>
+                Got a friend&apos;s code? Get 50 bonus tokens!
+              </p>
+            </div>
+          )}
 
           <button
             type="submit"
@@ -264,7 +342,9 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
 
         {mode === 'signup' && (
           <p style={{ color: '#64748b', fontSize: '11px', textAlign: 'center', marginTop: '16px' }}>
-            By signing up, you agree to our Terms of Service and Privacy Policy
+            By signing up, you agree to our{' '}
+            <Link href="/terms" style={{ color: '#14b8a6' }}>Terms</Link> and{' '}
+            <Link href="/privacy" style={{ color: '#14b8a6' }}>Privacy Policy</Link>
           </p>
         )}
       </div>

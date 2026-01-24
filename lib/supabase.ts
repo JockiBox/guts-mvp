@@ -271,3 +271,187 @@ export async function canPlay(userId: string, anteAmount: number = 1): Promise<b
   const profile = await getUserProfile(userId);
   return profile ? profile.tokens >= anteAmount : false;
 }
+
+// Referral system
+export async function applyReferralCode(userId: string, referralCode: string): Promise<{ success: boolean; message: string }> {
+  const REFERRAL_BONUS = 50;
+
+  try {
+    // Find the referrer by their code
+    const { data: referrer, error: findError } = await supabase
+      .from('profiles')
+      .select('id, tokens, referral_tokens_earned')
+      .eq('referral_code', referralCode)
+      .neq('id', userId) // Can't refer yourself
+      .single();
+
+    if (findError || !referrer) {
+      return { success: false, message: 'Invalid referral code' };
+    }
+
+    // Check if user already has a referrer
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('referred_by')
+      .eq('id', userId)
+      .single();
+
+    if (userProfile?.referred_by) {
+      return { success: false, message: 'Already used a referral code' };
+    }
+
+    // Create referral record
+    await supabase.from('referrals').insert({
+      referrer_id: referrer.id,
+      referred_id: userId,
+      tokens_rewarded: REFERRAL_BONUS,
+    });
+
+    // Reward referrer
+    await supabase
+      .from('profiles')
+      .update({
+        tokens: referrer.tokens + REFERRAL_BONUS,
+        referral_tokens_earned: (referrer.referral_tokens_earned || 0) + REFERRAL_BONUS,
+      })
+      .eq('id', referrer.id);
+
+    // Reward new user and link referral
+    const profile = await getUserProfile(userId);
+    if (profile) {
+      await supabase
+        .from('profiles')
+        .update({
+          tokens: profile.tokens + REFERRAL_BONUS,
+          referred_by: referrer.id,
+        })
+        .eq('id', userId);
+    }
+
+    return { success: true, message: `You earned ${REFERRAL_BONUS} bonus tokens!` };
+  } catch (error) {
+    console.error('Error applying referral code:', error);
+    return { success: false, message: 'Failed to apply referral code' };
+  }
+}
+
+// Get user's referral stats
+export async function getReferralStats(userId: string): Promise<{ code: string | null; referrals: number; tokensEarned: number }> {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('referral_code, referral_tokens_earned')
+      .eq('id', userId)
+      .single();
+
+    const { count } = await supabase
+      .from('referrals')
+      .select('*', { count: 'exact', head: true })
+      .eq('referrer_id', userId);
+
+    return {
+      code: profile?.referral_code || null,
+      referrals: count || 0,
+      tokensEarned: profile?.referral_tokens_earned || 0,
+    };
+  } catch (error) {
+    console.error('Error getting referral stats:', error);
+    return { code: null, referrals: 0, tokensEarned: 0 };
+  }
+}
+
+// Friends system
+export async function sendFriendRequest(fromUserId: string, toUserId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('friend_requests').insert({
+      from_user_id: fromUserId,
+      to_user_id: toUserId,
+      status: 'pending',
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function acceptFriendRequest(requestId: string): Promise<boolean> {
+  try {
+    const { data: request } = await supabase
+      .from('friend_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+
+    if (!request) return false;
+
+    // Create friendship (both directions)
+    await supabase.from('friendships').insert([
+      { user_id: request.from_user_id, friend_id: request.to_user_id },
+      { user_id: request.to_user_id, friend_id: request.from_user_id },
+    ]);
+
+    // Update request status
+    await supabase
+      .from('friend_requests')
+      .update({ status: 'accepted' })
+      .eq('id', requestId);
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function getFriends(userId: string): Promise<UserProfile[]> {
+  try {
+    const { data } = await supabase
+      .from('friendships')
+      .select('friend:profiles!friend_id(*)')
+      .eq('user_id', userId);
+
+    if (!data) return [];
+    return data.map(d => (d as unknown as { friend: UserProfile }).friend).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+// Notifications
+export async function getNotifications(userId: string): Promise<Array<{ id: string; title: string; message: string; read: boolean; created_at: string }>> {
+  try {
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    return data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function markNotificationRead(notificationId: string): Promise<void> {
+  await supabase
+    .from('notifications')
+    .update({ read: true })
+    .eq('id', notificationId);
+}
+
+// Announcements
+export async function getActiveAnnouncements(): Promise<Array<{ id: string; title: string; message: string; type: string }>> {
+  try {
+    const { data } = await supabase
+      .from('announcements')
+      .select('*')
+      .eq('is_active', true)
+      .or('expires_at.is.null,expires_at.gt.now()')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    return data || [];
+  } catch {
+    return [];
+  }
+}
