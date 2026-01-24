@@ -144,6 +144,17 @@ function createInitialPlayers(): Player[] {
   }));
 }
 
+// Reveal phases: 'waiting' -> 'reveal-players' -> 'reveal-ghost-delay' -> 'reveal-ghosts' -> done
+type RevealPhase = 'waiting' | 'reveal-players' | 'reveal-ghost-delay' | 'reveal-ghosts';
+
+interface ExtendedRevealState {
+  currentPlayerIndex: number;
+  currentCardIndex: number;
+  isRevealing: boolean;
+  revealPhase: RevealPhase;
+  ghostCardIndex: number; // which ghost card we're on (0 = first card of first ghost, etc.)
+}
+
 const initialState: GameState = {
   players: createInitialPlayers(),
   pot: 0,
@@ -163,10 +174,13 @@ const initialState: GameState = {
 
 export function useGutsGame() {
   const [state, setState] = useState<GameState>(initialState);
+  const [revealPhase, setRevealPhase] = useState<RevealPhase>('waiting');
+  const [ghostCardIndex, setGhostCardIndex] = useState(0);
   const deckRef = useRef<Card[]>([]);
   const revealTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const countdownProcessedRef = useRef(false);
   const revealCompleteProcessedRef = useRef(false);
+  const phaseProcessedRef = useRef(false);
 
   const activePlayers = state.players.filter(p => p.isActive);
   const humanPlayer = state.players.find(p => p.isHuman);
@@ -207,6 +221,9 @@ export function useGutsGame() {
   const startRound = useCallback(() => {
     countdownProcessedRef.current = false;
     revealCompleteProcessedRef.current = false;
+    phaseProcessedRef.current = false;
+    setRevealPhase('waiting');
+    setGhostCardIndex(0);
     collectAntes();
     dealCards();
     setState(prev => ({
@@ -255,7 +272,7 @@ export function useGutsGame() {
     }));
   }, []);
 
-  const createGhostHand = useCallback(() => {
+  const addGhostHand = useCallback(() => {
     const newGhost: GhostHand = {
       id: `ghost-${Date.now()}`,
       cards: [deckRef.current.pop()!, deckRef.current.pop()!],
@@ -265,61 +282,9 @@ export function useGutsGame() {
     setState(prev => ({
       ...prev,
       ghostHands: [...prev.ghostHands, newGhost],
-      roundResult: `Everyone dropped! Ghost hand #${prev.ghostHands.length + 1} joins the game!`,
     }));
-  }, []);
 
-  const revealNextCard = useCallback(() => {
-    setState(prev => {
-      const holders = prev.players.filter(p => p.isActive && p.decision === 'hold');
-      const totalRevealTargets = holders.length + prev.ghostHands.length;
-
-      if (totalRevealTargets === 0) {
-        return { ...prev, revealState: { ...prev.revealState, isRevealing: false } };
-      }
-
-      let { currentPlayerIndex, currentCardIndex } = prev.revealState;
-
-      // Determine what we're revealing
-      const isGhost = currentPlayerIndex >= holders.length;
-      const targetIndex = isGhost ? currentPlayerIndex - holders.length : currentPlayerIndex;
-
-      // Update the revealed cards
-      let newPlayers = [...prev.players];
-      const newGhostHands = [...prev.ghostHands];
-
-      if (!isGhost && holders[targetIndex]) {
-        const holderId = holders[targetIndex].id;
-        newPlayers = newPlayers.map(p =>
-          p.id === holderId ? { ...p, cardsRevealed: currentCardIndex + 1 } : p
-        );
-      } else if (isGhost && newGhostHands[targetIndex]) {
-        newGhostHands[targetIndex] = {
-          ...newGhostHands[targetIndex],
-          cardsRevealed: currentCardIndex + 1,
-        };
-      }
-
-      // Move to next card/player
-      currentCardIndex++;
-      if (currentCardIndex >= 2) {
-        currentCardIndex = 0;
-        currentPlayerIndex++;
-      }
-
-      const isComplete = currentPlayerIndex >= totalRevealTargets;
-
-      return {
-        ...prev,
-        players: newPlayers,
-        ghostHands: newGhostHands,
-        revealState: {
-          currentPlayerIndex,
-          currentCardIndex,
-          isRevealing: !isComplete,
-        },
-      };
-    });
+    return newGhost;
   }, []);
 
   const resolveRound = useCallback(() => {
@@ -347,7 +312,7 @@ export function useGutsGame() {
         return prev;
       }
 
-      // Find winner(s)
+      // Find winner(s) - must beat ALL hands including ghosts
       const maxValue = Math.max(...allHands.map(h => h.value));
       const winningHands = allHands.filter(h => h.value === maxValue);
       const losingHands = allHands.filter(h => h.value < maxValue);
@@ -358,27 +323,39 @@ export function useGutsGame() {
       const ghostWon = winningHands.some(h => h.isGhost);
       const playerWon = winningHands.some(h => !h.isGhost);
 
+      // Check if any player lost to a ghost hand
+      const playerLostToGhost = ghostWon && loserIds.length > 0;
+
       let newPot = 0;
       const newPlayers = prev.players.map(p => {
         if (loserIds.includes(p.id)) {
-          const tokensToLose = Math.min(p.tokens, prev.pot);
+          // If lost to ghost hand, DOUBLE the pot; otherwise match it
+          const multiplier = playerLostToGhost ? 2 : 1;
+          const tokensToLose = Math.min(p.tokens, prev.pot * multiplier);
           newPot += tokensToLose;
           return { ...p, tokens: p.tokens - tokensToLose, isActive: p.tokens - tokensToLose > 0 };
         }
         if (winnerIds.includes(p.id) && !ghostWon) {
-          const share = Math.floor(prev.pot / winningHands.filter(h => !h.isGhost).length);
+          // Player won - takes the pot (split if multiple winners)
+          const playerWinners = winningHands.filter(h => !h.isGhost).length;
+          const share = Math.floor(prev.pot / playerWinners);
           return { ...p, tokens: p.tokens + share };
         }
         return p;
       });
 
-      // Clear ghost hands if player won
+      // Clear ghost hands only if a player won outright (beat everyone including ghosts)
       const newGhostHands = playerWon && !ghostWon ? [] : prev.ghostHands;
 
       // Build result message
       let resultMessage = '';
       if (ghostWon && !playerWon) {
-        resultMessage = `Ghost hand wins with ${getHandDescription(prev.ghostHands.find(g => winnerIds.includes(g.id))?.cards || [])}! Pot stays at ${prev.pot + newPot} tokens.`;
+        const winningGhost = prev.ghostHands.find(g => winnerIds.includes(g.id));
+        resultMessage = `Ghost hand wins with ${getHandDescription(winningGhost?.cards || [])}! Losers DOUBLE the pot!`;
+        newPot = prev.pot + newPot;
+      } else if (ghostWon && playerWon) {
+        // Tie between ghost and player - ghost wins ties, pot stays
+        resultMessage = `Tie with Ghost! Pot stays at ${prev.pot + newPot} tokens.`;
         newPot = prev.pot + newPot;
       } else if (playerWon) {
         const winnerNames = winningHands
@@ -394,7 +371,7 @@ export function useGutsGame() {
       return {
         ...prev,
         players: newPlayers,
-        pot: ghostWon && !playerWon ? newPot : newPot,
+        pot: ghostWon ? newPot : newPot,
         ghostHands: newGhostHands,
         winners: winnerIds,
         losers: loserIds,
@@ -404,21 +381,92 @@ export function useGutsGame() {
     });
   }, []);
 
+  // Reveal all player cards at once
+  const revealAllPlayerCards = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      players: prev.players.map(p =>
+        p.isActive && p.decision === 'hold' ? { ...p, cardsRevealed: 2 } : p
+      ),
+    }));
+  }, []);
+
+  // Reveal next ghost card (one at a time)
+  const revealNextGhostCard = useCallback(() => {
+    setState(prev => {
+      const totalGhostCards = prev.ghostHands.length * 2;
+
+      if (ghostCardIndex >= totalGhostCards) {
+        return prev;
+      }
+
+      const ghostIndex = Math.floor(ghostCardIndex / 2);
+      const cardIndex = (ghostCardIndex % 2) + 1;
+
+      const newGhostHands = prev.ghostHands.map((ghost, idx) => {
+        if (idx === ghostIndex) {
+          return { ...ghost, cardsRevealed: cardIndex };
+        }
+        if (idx < ghostIndex) {
+          return { ...ghost, cardsRevealed: 2 };
+        }
+        return ghost;
+      });
+
+      return {
+        ...prev,
+        ghostHands: newGhostHands,
+      };
+    });
+
+    setGhostCardIndex(prev => prev + 1);
+  }, [ghostCardIndex]);
+
   const startRevealPhase = useCallback(() => {
     const holders = state.players.filter(p => p.isActive && p.decision === 'hold');
+    const droppers = state.players.filter(p => p.isActive && p.decision === 'drop');
 
-    if (holders.length === 0 && state.ghostHands.length === 0) {
-      createGhostHand();
-      setState(prev => ({ ...prev, gamePhase: 'summary' }));
-      return;
-    }
-
+    // If everyone dropped - add ghost hand and go to summary
     if (holders.length === 0) {
-      createGhostHand();
-      setState(prev => ({ ...prev, gamePhase: 'summary' }));
+      addGhostHand();
+      setState(prev => ({
+        ...prev,
+        gamePhase: 'summary',
+        roundResult: `Everyone dropped! Ghost hand #${prev.ghostHands.length + 1} joins the game!`,
+      }));
       return;
     }
 
+    // If everyone held - add ghost hand, collect antes, deal new cards, new decision
+    if (droppers.length === 0) {
+      addGhostHand();
+      collectAntes();
+
+      // Reset for new decision round
+      deckRef.current = shuffleDeck(createDeck());
+      setState(prev => ({
+        ...prev,
+        players: prev.players.map(player => {
+          if (!player.isActive) {
+            return player;
+          }
+          const cards = [deckRef.current.pop()!, deckRef.current.pop()!];
+          return { ...player, cards, cardsRevealed: 0, decision: null };
+        }),
+        ghostHands: prev.ghostHands.map(ghost => ({
+          ...ghost,
+          cards: [deckRef.current.pop()!, deckRef.current.pop()!],
+          cardsRevealed: 0,
+        })),
+        gamePhase: 'decision',
+        countdown: 3,
+        roundResult: `Everyone held! Ghost hand #${prev.ghostHands.length + 1} added. New cards dealt!`,
+      }));
+      countdownProcessedRef.current = false;
+      return;
+    }
+
+    // Normal reveal: some held, some dropped
     setState(prev => ({
       ...prev,
       gamePhase: 'reveal',
@@ -428,7 +476,10 @@ export function useGutsGame() {
         isRevealing: true,
       },
     }));
-  }, [state.players, state.ghostHands.length, createGhostHand]);
+    setRevealPhase('waiting');
+    setGhostCardIndex(0);
+    phaseProcessedRef.current = false;
+  }, [state.players, addGhostHand, collectAntes]);
 
   // Countdown effect
   useEffect(() => {
@@ -454,28 +505,89 @@ export function useGutsGame() {
     }
   }, [state.countdown, state.gamePhase, makeAIDecisions, startRevealPhase]);
 
-  // Reveal animation effect
+  // New reveal sequence effect
   useEffect(() => {
-    if (state.gamePhase === 'reveal' && state.revealState.isRevealing) {
-      revealCompleteProcessedRef.current = false;
+    if (state.gamePhase !== 'reveal') {
+      return;
+    }
+
+    const holders = state.players.filter(p => p.isActive && p.decision === 'hold');
+    const totalGhostCards = state.ghostHands.length * 2;
+
+    if (revealPhase === 'waiting' && !phaseProcessedRef.current) {
+      phaseProcessedRef.current = true;
+      // 2 second delay before revealing player cards
       revealTimeoutRef.current = setTimeout(() => {
-        revealNextCard();
-      }, 800);
+        setRevealPhase('reveal-players');
+        phaseProcessedRef.current = false;
+      }, 2000);
       return () => {
         if (revealTimeoutRef.current) {
           clearTimeout(revealTimeoutRef.current);
         }
       };
-    } else if (state.gamePhase === 'reveal' && !state.revealState.isRevealing && !revealCompleteProcessedRef.current) {
-      revealCompleteProcessedRef.current = true;
-      setTimeout(() => resolveRound(), 500);
+    }
+
+    if (revealPhase === 'reveal-players' && !phaseProcessedRef.current) {
+      phaseProcessedRef.current = true;
+      // Reveal all player cards at once
+      revealAllPlayerCards();
+
+      // 2 second delay before ghost cards (or resolve if no ghosts)
+      revealTimeoutRef.current = setTimeout(() => {
+        if (state.ghostHands.length > 0) {
+          setRevealPhase('reveal-ghost-delay');
+        } else {
+          resolveRound();
+        }
+        phaseProcessedRef.current = false;
+      }, 2000);
+      return () => {
+        if (revealTimeoutRef.current) {
+          clearTimeout(revealTimeoutRef.current);
+        }
+      };
+    }
+
+    if (revealPhase === 'reveal-ghost-delay' && !phaseProcessedRef.current) {
+      phaseProcessedRef.current = true;
+      // Start revealing ghost cards
+      revealTimeoutRef.current = setTimeout(() => {
+        setRevealPhase('reveal-ghosts');
+        phaseProcessedRef.current = false;
+      }, 500);
+      return () => {
+        if (revealTimeoutRef.current) {
+          clearTimeout(revealTimeoutRef.current);
+        }
+      };
+    }
+
+    if (revealPhase === 'reveal-ghosts') {
+      if (ghostCardIndex < totalGhostCards) {
+        // Reveal next ghost card
+        revealTimeoutRef.current = setTimeout(() => {
+          revealNextGhostCard();
+        }, 800);
+        return () => {
+          if (revealTimeoutRef.current) {
+            clearTimeout(revealTimeoutRef.current);
+          }
+        };
+      } else if (!revealCompleteProcessedRef.current) {
+        // All ghost cards revealed, resolve round
+        revealCompleteProcessedRef.current = true;
+        setTimeout(() => resolveRound(), 1000);
+      }
     }
   }, [
     state.gamePhase,
-    state.revealState.isRevealing,
-    state.revealState.currentPlayerIndex,
-    state.revealState.currentCardIndex,
-    revealNextCard,
+    state.ghostHands.length,
+    state.players,
+    revealPhase,
+    ghostCardIndex,
+    revealAllPlayerCards,
+    revealNextGhostCard,
     resolveRound,
   ]);
 
