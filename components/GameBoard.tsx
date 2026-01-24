@@ -299,13 +299,14 @@ export function GameBoard() {
             </div>
           )}
 
-          {/* Result message */}
+          {/* Result message with winner crown */}
           {gamePhase === 'summary' && roundResult && (
             <div
               style={{
+                position: 'relative',
                 background: 'rgba(30,41,59,0.95)',
                 borderRadius: '16px',
-                padding: '16px 24px',
+                padding: '20px 28px',
                 border: winners.includes(humanPlayer?.id || '')
                   ? '3px solid #22c55e'
                   : losers.includes(humanPlayer?.id || '')
@@ -314,18 +315,69 @@ export function GameBoard() {
                 textAlign: 'center',
                 maxWidth: '400px',
                 boxShadow: winners.includes(humanPlayer?.id || '')
-                  ? '0 0 40px rgba(34,197,94,0.5)'
+                  ? '0 0 50px rgba(34,197,94,0.6)'
                   : losers.includes(humanPlayer?.id || '')
-                    ? '0 0 40px rgba(239,68,68,0.5)'
-                    : '0 0 30px rgba(251,191,36,0.4)',
-                animation: 'result-appear 0.5s ease-out',
+                    ? '0 0 50px rgba(239,68,68,0.6)'
+                    : '0 0 40px rgba(251,191,36,0.5)',
+                animation: 'result-appear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
               }}
             >
+              {/* Winner crown burst */}
+              {winners.includes(humanPlayer?.id || '') && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-30px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    fontSize: '40px',
+                    animation: 'crown-bounce 0.5s ease-out',
+                    filter: 'drop-shadow(0 0 10px rgba(251,191,36,0.8))',
+                  }}
+                >
+                  👑
+                </div>
+              )}
+              {/* Loser skull */}
+              {losers.includes(humanPlayer?.id || '') && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-25px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    fontSize: '32px',
+                    animation: 'skull-shake 0.3s ease-out',
+                  }}
+                >
+                  💀
+                </div>
+              )}
+              {/* Ghost win */}
+              {!winners.includes(humanPlayer?.id || '') && !losers.includes(humanPlayer?.id || '') && roundResult.includes('Ghost') && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-25px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    fontSize: '32px',
+                    animation: 'ghost-float 1s ease-in-out infinite',
+                  }}
+                >
+                  👻
+                </div>
+              )}
               <p style={{
                 color: winners.includes(humanPlayer?.id || '') ? '#4ade80' : losers.includes(humanPlayer?.id || '') ? '#f87171' : '#fbbf24',
                 fontWeight: 'bold',
-                fontSize: '18px',
-                margin: 0
+                fontSize: '20px',
+                margin: 0,
+                textShadow: winners.includes(humanPlayer?.id || '')
+                  ? '0 0 20px rgba(74,222,128,0.5)'
+                  : losers.includes(humanPlayer?.id || '')
+                    ? '0 0 20px rgba(248,113,113,0.5)'
+                    : 'none',
               }}>
                 {roundResult}
               </p>
@@ -605,8 +657,23 @@ export function GameBoard() {
           50% { box-shadow: 0 0 60px rgba(239,68,68,0.8), 0 8px 32px rgba(0,0,0,0.3); }
         }
         @keyframes result-appear {
-          0% { transform: scale(0.8); opacity: 0; }
+          0% { transform: scale(0.5); opacity: 0; }
+          70% { transform: scale(1.1); }
           100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes crown-bounce {
+          0% { transform: translateX(-50%) translateY(-20px) scale(0); opacity: 0; }
+          50% { transform: translateX(-50%) translateY(5px) scale(1.2); }
+          100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes skull-shake {
+          0%, 100% { transform: translateX(-50%) rotate(0deg); }
+          25% { transform: translateX(-50%) rotate(-10deg); }
+          75% { transform: translateX(-50%) rotate(10deg); }
+        }
+        @keyframes ghost-float {
+          0%, 100% { transform: translateX(-50%) translateY(0); }
+          50% { transform: translateX(-50%) translateY(-5px); }
         }
       `}</style>
     </div>

@@ -141,6 +141,9 @@ function calculateAIDecision(player: Player): Decision {
   return Math.random() < holdProbability ? 'hold' : 'drop';
 }
 
+// TODO: Future enhancement - fetch trending names from Google Trends API
+// Use top names from sports, entertainment, politics etc. for AI opponents
+// Example: GET /api/trending-names -> ["LeBron", "Taylor", "Elon", ...]
 const AI_NAMES = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India'];
 const PERSONALITIES: Personality[] = ['aggressive', 'conservative', 'random', 'tricky'];
 
