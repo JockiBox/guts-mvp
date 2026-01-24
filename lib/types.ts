@@ -73,3 +73,11 @@ export const SUIT_SYMBOLS: Record<Suit, string> = {
   clubs: '\u2663',
   spades: '\u2660',
 };
+
+// Suit ranking for tiebreakers: Spades > Diamonds > Hearts > Clubs
+export const SUIT_VALUES: Record<Suit, number> = {
+  spades: 4,
+  diamonds: 3,
+  hearts: 2,
+  clubs: 1,
+};

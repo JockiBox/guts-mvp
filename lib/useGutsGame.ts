@@ -11,7 +11,7 @@ import type {
   Personality,
   Decision,
 } from './types';
-import { RANK_VALUES } from './types';
+import { RANK_VALUES, SUIT_VALUES } from './types';
 import { AI_PROFILES, selectGameProfiles, getTrashTalk, loadProfileStats, saveProfileStats, loadHeartedProfiles, saveHeartedProfiles, incrementGamesPlayed as incrementProfileGamesPlayed, type AIProfile } from './profiles';
 import { loadDifficulty, saveDifficulty, getDifficultyConfig, type Difficulty } from './difficulty';
 import { updateStatsAfterRound, incrementGamesPlayed as incrementPlayerGames, type Achievement } from './stats';
@@ -45,20 +45,39 @@ export function getHandValue(cards: Card[]): number {
 
   const val1 = RANK_VALUES[cards[0].rank];
   const val2 = RANK_VALUES[cards[1].rank];
+  const suit1 = SUIT_VALUES[cards[0].suit];
+  const suit2 = SUIT_VALUES[cards[1].suit];
   const ranks = [cards[0].rank, cards[1].rank];
   const isPair = cards[0].rank === cards[1].rank;
+
+  // Determine high card and its suit for tiebreaker
+  // If same rank, use higher suit
+  let highCardSuit: number;
+  if (val1 > val2) {
+    highCardSuit = suit1;
+  } else if (val2 > val1) {
+    highCardSuit = suit2;
+  } else {
+    // Same rank - use higher suit
+    highCardSuit = Math.max(suit1, suit2);
+  }
+
+  // Add suit as decimal for tiebreaking (0.01 to 0.04)
+  const suitTiebreaker = highCardSuit * 0.01;
 
   // 6-9 is the BEST hand - "Six Nine" beats everything!
   const isSixNine = (ranks.includes('6') && ranks.includes('9'));
 
   if (isSixNine) {
-    return 2000; // Best possible hand
+    // For 6-9, use the higher suited card for tiebreaker
+    return 2000 + Math.max(suit1, suit2) * 0.01;
   }
   if (isPair) {
-    return 1000 + val1;
+    // For pairs, use higher suit among the pair for tiebreaker
+    return 1000 + val1 + Math.max(suit1, suit2) * 0.01;
   }
-  // Flushes don't matter in GUTS - just high card
-  return Math.max(val1, val2) * 15 + Math.min(val1, val2);
+  // High card - include suit tiebreaker
+  return Math.max(val1, val2) * 15 + Math.min(val1, val2) + suitTiebreaker;
 }
 
 export function getHandDescription(cards: Card[]): string {

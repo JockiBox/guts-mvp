@@ -42,41 +42,43 @@ export function Player({ player, isWinner, isLoser, showCards, isHearted, onHear
         minWidth: '100px',
       }}
     >
-      {/* Speech Bubble */}
+      {/* Speech Bubble - Trash Talk */}
       {player.currentThought && player.isActive && (
         <div
           style={{
             position: 'absolute',
-            top: '-32px',
+            top: '-45px',
             left: '50%',
             transform: 'translateX(-50%)',
-            background: 'rgba(30, 41, 59, 0.95)',
-            border: '1px solid #475569',
-            borderRadius: '8px',
-            padding: '3px 8px',
-            fontSize: '10px',
-            color: '#94a3b8',
+            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(51, 65, 85, 0.98))',
+            border: '2px solid #14b8a6',
+            borderRadius: '12px',
+            padding: '6px 12px',
+            fontSize: '12px',
+            fontWeight: '600',
+            color: '#5eead4',
             whiteSpace: 'nowrap',
-            maxWidth: '120px',
+            maxWidth: '160px',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            zIndex: 10,
-            animation: 'thought-appear 0.3s ease-out',
+            zIndex: 50,
+            animation: 'thought-appear 0.4s ease-out, thought-pulse 2s ease-in-out infinite',
+            boxShadow: '0 4px 15px rgba(20, 184, 166, 0.3)',
           }}
         >
-          {player.currentThought}
+          💬 {player.currentThought}
           {/* Bubble pointer */}
           <div
             style={{
               position: 'absolute',
-              bottom: '-6px',
+              bottom: '-8px',
               left: '50%',
               transform: 'translateX(-50%)',
               width: 0,
               height: 0,
-              borderLeft: '6px solid transparent',
-              borderRight: '6px solid transparent',
-              borderTop: '6px solid #475569',
+              borderLeft: '8px solid transparent',
+              borderRight: '8px solid transparent',
+              borderTop: '8px solid #14b8a6',
             }}
           />
         </div>
@@ -202,8 +204,12 @@ export function Player({ player, isWinner, isLoser, showCards, isHearted, onHear
 
       <style jsx>{`
         @keyframes thought-appear {
-          0% { opacity: 0; transform: translateX(-50%) translateY(5px); }
-          100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+          0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.8); }
+          100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+        }
+        @keyframes thought-pulse {
+          0%, 100% { box-shadow: 0 4px 15px rgba(20, 184, 166, 0.3); }
+          50% { box-shadow: 0 4px 20px rgba(20, 184, 166, 0.5); }
         }
         @keyframes token-win-bounce {
           0%, 100% { transform: scale(1); }
