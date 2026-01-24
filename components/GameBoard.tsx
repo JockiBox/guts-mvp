@@ -67,7 +67,7 @@ function Particles({ active, type }: { active: boolean; type: 'win' | 'sixnine' 
 }
 
 export function GameBoard() {
-  const { state, humanPlayer, startGame, makeHumanDecision, nextRound } = useGutsGame();
+  const { state, humanPlayer, startGame, makeHumanDecision, nextRound, playerCount, setPlayerCount } = useGutsGame();
   const {
     players,
     pot,
@@ -118,7 +118,14 @@ export function GameBoard() {
   }, [hasSixNine, gamePhase]);
 
   if (gamePhase === 'start') {
-    return <StartScreen onStart={startGame} resultMessage={roundResult} />;
+    return (
+      <StartScreen
+        onStart={startGame}
+        resultMessage={roundResult}
+        playerCount={playerCount}
+        setPlayerCount={setPlayerCount}
+      />
+    );
   }
 
   const aiPlayers = players.filter(p => !p.isHuman && p.isActive);
@@ -204,28 +211,30 @@ export function GameBoard() {
           minHeight: 0,
         }}
       >
-        {/* Top AI */}
-        <div style={{ gridColumn: '2', display: 'flex', justifyContent: 'center' }}>
-          {aiPlayers[0] && (
+        {/* Top AIs */}
+        <div style={{ gridColumn: '2', display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {aiPlayers.slice(0, Math.ceil(aiPlayers.length / 3)).map((player) => (
             <Player
-              player={aiPlayers[0]}
-              isWinner={winners.includes(aiPlayers[0].id)}
-              isLoser={losers.includes(aiPlayers[0].id)}
-              showCards={showCards && aiPlayers[0].decision === 'hold'}
+              key={player.id}
+              player={player}
+              isWinner={winners.includes(player.id)}
+              isLoser={losers.includes(player.id)}
+              showCards={showCards && player.decision === 'hold'}
             />
-          )}
+          ))}
         </div>
 
-        {/* Left AI */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {aiPlayers[1] && (
+        {/* Left AIs */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          {aiPlayers.slice(Math.ceil(aiPlayers.length / 3), Math.ceil(aiPlayers.length / 3) + Math.ceil(aiPlayers.length / 3)).map((player) => (
             <Player
-              player={aiPlayers[1]}
-              isWinner={winners.includes(aiPlayers[1].id)}
-              isLoser={losers.includes(aiPlayers[1].id)}
-              showCards={showCards && aiPlayers[1].decision === 'hold'}
+              key={player.id}
+              player={player}
+              isWinner={winners.includes(player.id)}
+              isLoser={losers.includes(player.id)}
+              showCards={showCards && player.decision === 'hold'}
             />
-          )}
+          ))}
         </div>
 
         {/* Center */}
@@ -331,22 +340,15 @@ export function GameBoard() {
 
         {/* Right AIs */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-          {aiPlayers[2] && (
+          {aiPlayers.slice(Math.ceil(aiPlayers.length / 3) + Math.ceil(aiPlayers.length / 3)).map((player) => (
             <Player
-              player={aiPlayers[2]}
-              isWinner={winners.includes(aiPlayers[2].id)}
-              isLoser={losers.includes(aiPlayers[2].id)}
-              showCards={showCards && aiPlayers[2].decision === 'hold'}
+              key={player.id}
+              player={player}
+              isWinner={winners.includes(player.id)}
+              isLoser={losers.includes(player.id)}
+              showCards={showCards && player.decision === 'hold'}
             />
-          )}
-          {aiPlayers[3] && (
-            <Player
-              player={aiPlayers[3]}
-              isWinner={winners.includes(aiPlayers[3].id)}
-              isLoser={losers.includes(aiPlayers[3].id)}
-              showCards={showCards && aiPlayers[3].decision === 'hold'}
-            />
-          )}
+          ))}
         </div>
 
         {/* Human player */}

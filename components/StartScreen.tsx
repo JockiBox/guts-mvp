@@ -1,11 +1,13 @@
 'use client';
 
 interface StartScreenProps {
-  onStart: () => void;
+  onStart: (playerCount: number) => void;
   resultMessage?: string;
+  playerCount: number;
+  setPlayerCount: (count: number) => void;
 }
 
-export function StartScreen({ onStart, resultMessage }: StartScreenProps) {
+export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCount }: StartScreenProps) {
   return (
     <div
       style={{
@@ -63,6 +65,60 @@ export function StartScreen({ onStart, resultMessage }: StartScreenProps) {
           </div>
         )}
 
+        {/* Player Count Selector */}
+        <div
+          style={{
+            background: '#0f172a',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '24px',
+            border: '1px solid #334155',
+          }}
+        >
+          <h2
+            style={{
+              fontWeight: 'bold',
+              color: '#14b8a6',
+              marginBottom: '12px',
+              fontSize: '16px',
+            }}
+          >
+            Number of Players
+          </h2>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '8px',
+              justifyContent: 'center',
+            }}
+          >
+            {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+              <button
+                key={num}
+                onClick={() => setPlayerCount(num)}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  border: playerCount === num ? '2px solid #14b8a6' : '1px solid #334155',
+                  background: playerCount === num ? '#14b8a6' : '#1e293b',
+                  color: playerCount === num ? '#0f172a' : '#94a3b8',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
+          <p style={{ color: '#64748b', fontSize: '12px', marginTop: '8px' }}>
+            1 human + {playerCount - 1} AI opponents
+          </p>
+        </div>
+
         {/* Rules */}
         <div
           style={{
@@ -102,9 +158,13 @@ export function StartScreen({ onStart, resultMessage }: StartScreenProps) {
               <span style={{ color: '#14b8a6', fontWeight: 'bold' }}>4.</span> Winner takes the pot,
               losers <span style={{ color: '#fbbf24' }}>match the pot</span>
             </li>
-            <li style={{ marginBottom: '0' }}>
+            <li style={{ marginBottom: '8px' }}>
               <span style={{ color: '#14b8a6', fontWeight: 'bold' }}>5.</span> If everyone drops, a{' '}
               <span style={{ color: '#c084fc' }}>Ghost Hand</span> joins!
+            </li>
+            <li style={{ marginBottom: '0' }}>
+              <span style={{ color: '#14b8a6', fontWeight: 'bold' }}>6.</span> Lose to a ghost?{' '}
+              <span style={{ color: '#ef4444' }}>DOUBLE</span> the pot!
             </li>
           </ol>
         </div>
@@ -158,7 +218,7 @@ export function StartScreen({ onStart, resultMessage }: StartScreenProps) {
 
         {/* Start Button */}
         <button
-          onClick={onStart}
+          onClick={() => onStart(playerCount)}
           style={{
             padding: '16px 32px',
             fontSize: '20px',
@@ -181,7 +241,7 @@ export function StartScreen({ onStart, resultMessage }: StartScreenProps) {
             e.currentTarget.style.boxShadow = '0 4px 14px rgba(20, 184, 166, 0.4)';
           }}
         >
-          {resultMessage ? 'PLAY AGAIN' : 'START GAME'}
+          {resultMessage ? 'PLAY AGAIN' : `START GAME (${playerCount} Players)`}
         </button>
       </div>
     </div>

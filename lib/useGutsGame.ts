@@ -141,21 +141,41 @@ function calculateAIDecision(player: Player): Decision {
   return Math.random() < holdProbability ? 'hold' : 'drop';
 }
 
-function createInitialPlayers(): Player[] {
-  const personalities: Personality[] = ['aggressive', 'conservative', 'random', 'tricky'];
-  const names = ['You', 'Alpha', 'Beta', 'Gamma', 'Delta'];
+const AI_NAMES = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India'];
+const PERSONALITIES: Personality[] = ['aggressive', 'conservative', 'random', 'tricky'];
 
-  return names.map((name, index) => ({
-    id: `player-${index}`,
-    name,
+function createInitialPlayers(playerCount: number = 5): Player[] {
+  const players: Player[] = [];
+
+  // Human player first
+  players.push({
+    id: 'player-0',
+    name: 'You',
     tokens: 100,
     cards: [],
-    isHuman: index === 0,
+    isHuman: true,
     decision: null,
-    personality: index === 0 ? undefined : personalities[index - 1],
+    personality: undefined,
     isActive: true,
     cardsRevealed: 0,
-  }));
+  });
+
+  // AI players
+  for (let i = 1; i < playerCount; i++) {
+    players.push({
+      id: `player-${i}`,
+      name: AI_NAMES[i - 1] || `Player ${i + 1}`,
+      tokens: 100,
+      cards: [],
+      isHuman: false,
+      decision: null,
+      personality: PERSONALITIES[(i - 1) % PERSONALITIES.length],
+      isActive: true,
+      cardsRevealed: 0,
+    });
+  }
+
+  return players;
 }
 
 const initialState: GameState = {
@@ -177,6 +197,7 @@ const initialState: GameState = {
 
 export function useGutsGame() {
   const [state, setState] = useState<GameState>(initialState);
+  const [playerCount, setPlayerCount] = useState(5);
   const deckRef = useRef<Card[]>([]);
   const countdownProcessedRef = useRef(false);
   const revealInProgressRef = useRef(false);
@@ -233,14 +254,18 @@ export function useGutsGame() {
     }));
   }, [collectAntes, dealCards]);
 
-  const startGame = useCallback(() => {
+  const startGame = useCallback((numPlayers?: number) => {
+    const count = numPlayers ?? playerCount;
+    if (numPlayers) {
+      setPlayerCount(numPlayers);
+    }
     setState({
       ...initialState,
-      players: createInitialPlayers(),
+      players: createInitialPlayers(count),
       gamePhase: 'start',
     });
     setTimeout(() => startRound(), 100);
-  }, [startRound]);
+  }, [startRound, playerCount]);
 
   const makeHumanDecision = useCallback(
     (decision: Decision) => {
@@ -287,7 +312,7 @@ export function useGutsGame() {
     setState(prev => {
       const holders = prev.players.filter(p => p.isActive && p.decision === 'hold');
 
-      // Calculate all hand values
+      // Calculate all hand values for players who held
       const playerHands = holders.map(p => ({
         id: p.id,
         name: p.name,
@@ -295,6 +320,7 @@ export function useGutsGame() {
         isGhost: false,
       }));
 
+      // Ghost hands always compete (they never drop)
       const ghostHandsData = prev.ghostHands.map(g => ({
         id: g.id,
         name: 'Ghost',
@@ -308,31 +334,36 @@ export function useGutsGame() {
         return prev;
       }
 
-      // Find winner(s) - must beat ALL hands including ghosts
+      // Find the highest hand value
       const maxValue = Math.max(...allHands.map(h => h.value));
       const winningHands = allHands.filter(h => h.value === maxValue);
       const losingHands = allHands.filter(h => h.value < maxValue);
 
       const winnerIds = winningHands.map(h => h.id);
+      // Only players can be "losers" (ghosts don't pay)
       const loserIds = losingHands.filter(h => !h.isGhost).map(h => h.id);
 
+      // Check if any ghost is among the winners
       const ghostWon = winningHands.some(h => h.isGhost);
+      // Check if any player is among the winners
       const playerWon = winningHands.some(h => !h.isGhost);
 
-      // Check if any player lost to a ghost hand
-      const playerLostToGhost = ghostWon && loserIds.length > 0;
+      // A player must beat ALL ghosts to win outright
+      // If ANY ghost ties or beats all players, ghosts stay
+      const playerBeatsAllGhosts = playerWon && !ghostWon;
 
       let newPot = 0;
       const newPlayers = prev.players.map(p => {
         if (loserIds.includes(p.id)) {
-          // If lost to ghost hand, DOUBLE the pot; otherwise match it
-          const multiplier = playerLostToGhost ? 2 : 1;
+          // All losers who held must match the pot
+          // If ghost won, they DOUBLE the pot
+          const multiplier = ghostWon ? 2 : 1;
           const tokensToLose = Math.min(p.tokens, prev.pot * multiplier);
           newPot += tokensToLose;
           return { ...p, tokens: p.tokens - tokensToLose, isActive: p.tokens - tokensToLose > 0 };
         }
-        if (winnerIds.includes(p.id) && !ghostWon) {
-          // Player won - takes the pot (split if multiple winners)
+        if (winnerIds.includes(p.id) && playerBeatsAllGhosts) {
+          // Player won outright - takes the pot (split if multiple player winners)
           const playerWinners = winningHands.filter(h => !h.isGhost).length;
           const share = Math.floor(prev.pot / playerWinners);
           return { ...p, tokens: p.tokens + share };
@@ -340,26 +371,39 @@ export function useGutsGame() {
         return p;
       });
 
-      // Clear ghost hands only if a player won outright (beat everyone including ghosts)
-      const newGhostHands = playerWon && !ghostWon ? [] : prev.ghostHands;
+      // GHOST PERSISTENCE RULE:
+      // Ghost hands ONLY clear when a player wins AND beats ALL ghost hands
+      // If any ghost wins or ties with the best hand, ALL ghosts stay
+      const newGhostHands = playerBeatsAllGhosts ? [] : prev.ghostHands;
 
       // Build result message
       let resultMessage = '';
       if (ghostWon && !playerWon) {
+        // Ghost has the best hand, all players lost
         const winningGhost = prev.ghostHands.find(g => winnerIds.includes(g.id));
-        resultMessage = `Ghost hand wins with ${getHandDescription(winningGhost?.cards || [])}! Losers DOUBLE the pot!`;
+        resultMessage = `Ghost wins with ${getHandDescription(winningGhost?.cards || [])}! Losers DOUBLE the pot!`;
         newPot = prev.pot + newPot;
       } else if (ghostWon && playerWon) {
-        // Tie between ghost and player - ghost wins ties, pot stays
-        resultMessage = `Tie with Ghost! Pot stays at ${prev.pot + newPot} tokens.`;
+        // Tie between ghost and player - pot stays, ghosts stay
+        const tiedPlayerNames = winningHands
+          .filter(h => !h.isGhost)
+          .map(h => h.name)
+          .join(' & ');
+        resultMessage = `${tiedPlayerNames} tied with Ghost! Pot grows to ${prev.pot + newPot} tokens.`;
         newPot = prev.pot + newPot;
-      } else if (playerWon) {
+      } else if (playerBeatsAllGhosts) {
+        // Player beat everyone including all ghosts
         const winnerNames = winningHands
           .filter(h => !h.isGhost)
           .map(h => h.name)
           .join(' & ');
-        resultMessage = `${winnerNames} wins ${prev.pot} tokens!`;
-        if (losingHands.length > 0) {
+        const ghostCount = prev.ghostHands.length;
+        if (ghostCount > 0) {
+          resultMessage = `${winnerNames} beats ${ghostCount} ghost hand${ghostCount > 1 ? 's' : ''} and wins ${prev.pot} tokens!`;
+        } else {
+          resultMessage = `${winnerNames} wins ${prev.pot} tokens!`;
+        }
+        if (losingHands.filter(h => !h.isGhost).length > 0) {
           resultMessage += ` Losers match the pot.`;
         }
       }
@@ -367,7 +411,7 @@ export function useGutsGame() {
       return {
         ...prev,
         players: newPlayers,
-        pot: ghostWon ? newPot : newPot,
+        pot: ghostWon || (playerWon && ghostWon) ? newPot : newPot,
         ghostHands: newGhostHands,
         winners: winnerIds,
         losers: loserIds,
@@ -565,5 +609,7 @@ export function useGutsGame() {
     startGame,
     makeHumanDecision,
     nextRound,
+    playerCount,
+    setPlayerCount,
   };
 }
