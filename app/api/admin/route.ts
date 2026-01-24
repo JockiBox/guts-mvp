@@ -180,6 +180,52 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ data, exportType });
       }
 
+      case 'getSettings': {
+        const { data, error } = await supabase
+          .from('admin_settings')
+          .select('*')
+          .eq('id', 'global')
+          .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        // Return default settings if none exist
+        const defaultSettings = {
+          multiplayerEnabled: true,
+          tournamentsEnabled: true,
+          referralsEnabled: true,
+          dailyRewardsEnabled: true,
+          friendsEnabled: true,
+          chatEnabled: true,
+          chatModerationEnabled: true,
+          shopEnabled: true,
+          tokenPurchasesEnabled: true,
+          pushNotificationsEnabled: true,
+          defaultAnte: 1,
+          maxPlayersPerRoom: 8,
+          decisionTimeSeconds: 3,
+          maintenanceMode: false,
+          maintenanceMessage: 'We are currently performing maintenance. Please check back soon!',
+          signupsEnabled: true,
+          guestModeEnabled: true,
+          leaderboardEnabled: true,
+          achievementsEnabled: true,
+          tutorialEnabled: true,
+          soundEnabled: true,
+          spectatorModeEnabled: true,
+          socialSharingEnabled: true,
+          minTokensToPlay: 1,
+          maxAnteMultiplier: 10,
+          dailyRewardBaseAmount: 10,
+          referralBonus: 50,
+          welcomeBonus: 100,
+        };
+
+        return NextResponse.json({
+          settings: data?.settings ? { ...defaultSettings, ...data.settings } : defaultSettings
+        });
+      }
+
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
@@ -437,6 +483,49 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json({ success: true, sent: users?.length || 0 });
+      }
+
+      case 'updateSettings': {
+        const { settings } = body;
+        if (!settings || typeof settings !== 'object') {
+          return NextResponse.json({ error: 'Missing settings object' }, { status: 400 });
+        }
+
+        // Get current settings
+        const { data: current } = await supabase
+          .from('admin_settings')
+          .select('settings')
+          .eq('id', 'global')
+          .single();
+
+        // Merge with new settings
+        const newSettings = {
+          ...(current?.settings || {}),
+          ...settings,
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Upsert settings
+        const { error } = await supabase
+          .from('admin_settings')
+          .upsert({
+            id: 'global',
+            settings: newSettings,
+          });
+
+        if (error) throw error;
+
+        // Log activity
+        try {
+          await supabase.from('activity_log').insert({
+            action: 'settings_updated',
+            details: { changedKeys: Object.keys(settings) },
+          });
+        } catch {
+          // Activity log may not exist
+        }
+
+        return NextResponse.json({ success: true, settings: newSettings });
       }
 
       default:

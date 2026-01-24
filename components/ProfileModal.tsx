@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { type UserProfile, updateUserProfile, signOut, getReferralStats, getNotifications, markNotificationRead } from '@/lib/supabase';
-import { playClick, playTokens } from '@/lib/sounds';
+import { type UserProfile, updateUserProfile, signOut, getReferralStats, getNotifications, markNotificationRead, supabase } from '@/lib/supabase';
+import { playClick, playTokens, setMasterVolume, getMasterVolume } from '@/lib/sounds';
 import Link from 'next/link';
 
 interface ProfileModalProps {
@@ -11,6 +11,15 @@ interface ProfileModalProps {
   user: UserProfile;
   onUpdate: () => void;
   onSignOut: () => void;
+}
+
+interface GameHistoryEntry {
+  id: string;
+  rounds_played: number;
+  tokens_won: number;
+  tokens_lost: number;
+  final_result: string;
+  created_at: string;
 }
 
 const AVATAR_COLORS = [
@@ -22,9 +31,16 @@ const AVATAR_COLORS = [
   '#f59e0b', // amber
   '#22c55e', // green
   '#64748b', // slate
+  '#06b6d4', // cyan
+  '#6366f1', // indigo
+  '#d946ef', // fuchsia
+  '#84cc16', // lime
 ];
 
-type TabType = 'profile' | 'referrals' | 'notifications';
+// Additional purchasable avatar emojis
+const PREMIUM_AVATARS = ['👑', '🦁', '🐉', '🦊', '🦄', '🐺', '🦅', '🦈', '🐙', '🦋', '🔥', '💎', '⚡', '🌟', '🎭', '🎪'];
+
+type TabType = 'profile' | 'referrals' | 'notifications' | 'history' | 'settings';
 
 export function ProfileModal({ isOpen, onClose, user, onUpdate, onSignOut }: ProfileModalProps) {
   const [selectedAvatar, setSelectedAvatar] = useState(user.avatar_emoji);
@@ -35,6 +51,9 @@ export function ProfileModal({ isOpen, onClose, user, onUpdate, onSignOut }: Pro
   const [referralStats, setReferralStats] = useState<{ code: string | null; referrals: number; tokensEarned: number } | null>(null);
   const [notifications, setNotifications] = useState<Array<{ id: string; title: string; message: string; read: boolean; created_at: string }>>([]);
   const [copied, setCopied] = useState(false);
+  const [gameHistory, setGameHistory] = useState<GameHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [soundVolume, setSoundVolume] = useState(getMasterVolume());
 
   useEffect(() => {
     if (isOpen) {
@@ -42,6 +61,36 @@ export function ProfileModal({ isOpen, onClose, user, onUpdate, onSignOut }: Pro
       getNotifications(user.id).then(setNotifications);
     }
   }, [isOpen, user.id]);
+
+  // Load game history when tab is selected
+  useEffect(() => {
+    if (isOpen && activeTab === 'history' && gameHistory.length === 0) {
+      loadGameHistory();
+    }
+  }, [isOpen, activeTab, user.id]);
+
+  const loadGameHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const { data } = await supabase
+        .from('game_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      setGameHistory(data || []);
+    } catch (error) {
+      console.error('Error loading game history:', error);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleVolumeChange = (volume: number) => {
+    setSoundVolume(volume);
+    setMasterVolume(volume);
+    playClick();
+  };
 
   if (!isOpen) return null;
 
@@ -174,9 +223,10 @@ export function ProfileModal({ isOpen, onClose, user, onUpdate, onSignOut }: Pro
             background: '#0f172a',
             borderRadius: '10px',
             padding: '4px',
+            flexWrap: 'wrap',
           }}
         >
-          {(['profile', 'referrals', 'notifications'] as const).map((tab) => (
+          {(['profile', 'history', 'referrals', 'notifications', 'settings'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => {
@@ -184,37 +234,38 @@ export function ProfileModal({ isOpen, onClose, user, onUpdate, onSignOut }: Pro
                 setActiveTab(tab);
               }}
               style={{
-                flex: 1,
-                padding: '10px',
+                flex: '1 1 auto',
+                minWidth: '60px',
+                padding: '8px 6px',
                 borderRadius: '8px',
                 border: 'none',
                 background: activeTab === tab ? '#14b8a6' : 'transparent',
                 color: activeTab === tab ? '#0f172a' : '#64748b',
                 fontWeight: '600',
-                fontSize: '12px',
+                fontSize: '11px',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 position: 'relative',
               }}
             >
               {tab === 'profile' && '👤'}
+              {tab === 'history' && '📊'}
               {tab === 'referrals' && '🎁'}
               {tab === 'notifications' && '🔔'}
-              {' '}
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'settings' && '⚙️'}
               {tab === 'notifications' && unreadCount > 0 && (
                 <span
                   style={{
                     position: 'absolute',
-                    top: '4px',
-                    right: '8px',
+                    top: '2px',
+                    right: '4px',
                     background: '#ef4444',
                     color: 'white',
-                    fontSize: '10px',
+                    fontSize: '9px',
                     fontWeight: '700',
                     borderRadius: '10px',
-                    padding: '2px 6px',
-                    minWidth: '16px',
+                    padding: '1px 4px',
+                    minWidth: '14px',
                   }}
                 >
                   {unreadCount}
@@ -616,6 +667,236 @@ export function ProfileModal({ isOpen, onClose, user, onUpdate, onSignOut }: Pro
                 ))}
               </div>
             )}
+          </>
+        )}
+
+        {/* Game History Tab */}
+        {activeTab === 'history' && (
+          <>
+            <h3 style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '16px' }}>
+              Game History
+            </h3>
+            {historyLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                <div style={{ fontSize: '40px', marginBottom: '12px', animation: 'pulse 1s ease-in-out infinite' }}>📊</div>
+                <p>Loading history...</p>
+              </div>
+            ) : gameHistory.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                <div style={{ fontSize: '40px', marginBottom: '12px' }}>📊</div>
+                <p>No games played yet</p>
+                <p style={{ fontSize: '12px', color: '#475569' }}>Start playing to see your history!</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {gameHistory.map((game) => {
+                  const netTokens = game.tokens_won - game.tokens_lost;
+                  const isWin = netTokens > 0;
+                  return (
+                    <div
+                      key={game.id}
+                      style={{
+                        background: '#0f172a',
+                        borderRadius: '10px',
+                        padding: '12px 16px',
+                        border: `1px solid ${isWin ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ color: '#cbd5e1', fontWeight: '600', fontSize: '14px' }}>
+                            {game.rounds_played} rounds played
+                          </div>
+                          <div style={{ color: '#64748b', fontSize: '11px' }}>
+                            {new Date(game.created_at).toLocaleDateString()} at {new Date(game.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div
+                            style={{
+                              color: isWin ? '#4ade80' : '#f87171',
+                              fontWeight: '700',
+                              fontSize: '16px',
+                            }}
+                          >
+                            {isWin ? '+' : ''}{netTokens} 🪙
+                          </div>
+                          <div style={{ color: '#64748b', fontSize: '10px' }}>
+                            Won: {game.tokens_won} | Lost: {game.tokens_lost}
+                          </div>
+                        </div>
+                      </div>
+                      {game.final_result && (
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            padding: '6px 10px',
+                            background: isWin ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            color: isWin ? '#4ade80' : '#f87171',
+                          }}
+                        >
+                          {game.final_result}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <>
+            <h3 style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '16px' }}>
+              Game Settings
+            </h3>
+
+            {/* Sound Volume */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '8px' }}>
+                Sound Volume
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '20px' }}>{soundVolume === 0 ? '🔇' : soundVolume < 0.5 ? '🔉' : '🔊'}</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={soundVolume}
+                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  style={{
+                    flex: 1,
+                    height: '8px',
+                    borderRadius: '4px',
+                    background: `linear-gradient(to right, #14b8a6 ${soundVolume * 100}%, #334155 ${soundVolume * 100}%)`,
+                    appearance: 'none',
+                    cursor: 'pointer',
+                  }}
+                />
+                <span style={{ color: '#64748b', fontSize: '12px', minWidth: '40px', textAlign: 'right' }}>
+                  {Math.round(soundVolume * 100)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Volume Buttons */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+              {[0, 0.25, 0.5, 0.75, 1].map((vol) => (
+                <button
+                  key={vol}
+                  onClick={() => handleVolumeChange(vol)}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: '8px',
+                    border: soundVolume === vol ? '2px solid #14b8a6' : '1px solid #334155',
+                    background: soundVolume === vol ? 'rgba(20, 184, 166, 0.2)' : '#0f172a',
+                    color: soundVolume === vol ? '#14b8a6' : '#64748b',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {vol === 0 ? 'Off' : `${vol * 100}%`}
+                </button>
+              ))}
+            </div>
+
+            {/* Premium Avatars (locked unless purchased) */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '8px' }}>
+                Premium Avatars
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {PREMIUM_AVATARS.map((emoji) => {
+                  const isUnlocked = user.unlocked_avatars.includes(emoji);
+                  return (
+                    <button
+                      key={emoji}
+                      onClick={() => {
+                        if (isUnlocked) {
+                          playClick();
+                          setSelectedAvatar(emoji);
+                          setActiveTab('profile');
+                        }
+                      }}
+                      style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '10px',
+                        border: isUnlocked ? '1px solid #fbbf24' : '1px solid #334155',
+                        background: isUnlocked ? 'rgba(251, 191, 36, 0.1)' : '#0f172a',
+                        fontSize: '22px',
+                        cursor: isUnlocked ? 'pointer' : 'not-allowed',
+                        opacity: isUnlocked ? 1 : 0.4,
+                        position: 'relative',
+                      }}
+                      title={isUnlocked ? emoji : 'Locked - Purchase in shop'}
+                    >
+                      {emoji}
+                      {!isUnlocked && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            bottom: '2px',
+                            right: '2px',
+                            fontSize: '10px',
+                          }}
+                        >
+                          🔒
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={{ color: '#64748b', fontSize: '11px', marginTop: '8px' }}>
+                Purchase premium avatars in the shop
+              </p>
+            </div>
+
+            {/* Account Info */}
+            <div style={{ background: '#0f172a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
+              <h4 style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Account
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b', fontSize: '13px' }}>Email</span>
+                  <span style={{ color: '#94a3b8', fontSize: '13px' }}>{user.email}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b', fontSize: '13px' }}>Member since</span>
+                  <span style={{ color: '#94a3b8', fontSize: '13px' }}>{new Date(user.created_at).toLocaleDateString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b', fontSize: '13px' }}>Total games</span>
+                  <span style={{ color: '#94a3b8', fontSize: '13px' }}>{user.total_games}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sign Out */}
+            <button
+              onClick={handleSignOut}
+              style={{
+                width: '100%',
+                padding: '12px',
+                fontSize: '14px',
+                color: '#f87171',
+                background: 'transparent',
+                border: '1px solid rgba(248, 113, 113, 0.3)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+              }}
+            >
+              Sign Out
+            </button>
           </>
         )}
       </div>

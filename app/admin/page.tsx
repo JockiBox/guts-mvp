@@ -67,7 +67,46 @@ interface Stats {
   weekRevenue: number;
 }
 
-type TabType = 'stats' | 'users' | 'purchases' | 'announcements' | 'activity';
+interface AdminSettings {
+  // Game features
+  multiplayerEnabled: boolean;
+  tournamentsEnabled: boolean;
+  referralsEnabled: boolean;
+  dailyRewardsEnabled: boolean;
+  // Social features
+  friendsEnabled: boolean;
+  chatEnabled: boolean;
+  chatModerationEnabled: boolean;
+  // Shop features
+  shopEnabled: boolean;
+  tokenPurchasesEnabled: boolean;
+  // Notifications
+  pushNotificationsEnabled: boolean;
+  // Game settings
+  defaultAnte: number;
+  maxPlayersPerRoom: number;
+  decisionTimeSeconds: number;
+  // Maintenance
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  // Additional features
+  signupsEnabled: boolean;
+  guestModeEnabled: boolean;
+  leaderboardEnabled: boolean;
+  achievementsEnabled: boolean;
+  tutorialEnabled: boolean;
+  soundEnabled: boolean;
+  spectatorModeEnabled: boolean;
+  socialSharingEnabled: boolean;
+  // Numeric settings
+  minTokensToPlay: number;
+  maxAnteMultiplier: number;
+  dailyRewardBaseAmount: number;
+  referralBonus: number;
+  welcomeBonus: number;
+}
+
+type TabType = 'stats' | 'users' | 'purchases' | 'announcements' | 'activity' | 'settings';
 
 export default function AdminPage() {
   const [password, setPassword] = useState('');
@@ -88,6 +127,8 @@ export default function AdminPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showBlockedOnly, setShowBlockedOnly] = useState(false);
+  const [settings, setSettings] = useState<AdminSettings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(false);
 
   // Announcement form
   const [announcementForm, setAnnouncementForm] = useState({
@@ -143,6 +184,11 @@ export default function AdminPage() {
     if (data?.activities) setActivities(data.activities);
   }, [fetchData]);
 
+  const loadSettings = useCallback(async () => {
+    const data = await fetchData('getSettings');
+    if (data?.settings) setSettings(data.settings);
+  }, [fetchData]);
+
   useEffect(() => {
     if (isAuthenticated) {
       loadStats();
@@ -150,8 +196,9 @@ export default function AdminPage() {
       loadPurchases();
       loadAnnouncements();
       loadActivities();
+      loadSettings();
     }
-  }, [isAuthenticated, loadStats, loadUsers, loadPurchases, loadAnnouncements, loadActivities]);
+  }, [isAuthenticated, loadStats, loadUsers, loadPurchases, loadAnnouncements, loadActivities, loadSettings]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -271,6 +318,28 @@ export default function AdminPage() {
       a.download = `${type}-export-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
     }
+  };
+
+  const updateSetting = async (key: keyof AdminSettings, value: AdminSettings[keyof AdminSettings]) => {
+    if (!settings) return;
+    setSettingsLoading(true);
+
+    const success = await adminAction('updateSettings', { settings: { [key]: value } });
+    if (success) {
+      setSettings(prev => prev ? { ...prev, [key]: value } : null);
+    }
+    setSettingsLoading(false);
+  };
+
+  const updateMultipleSettings = async (updates: Partial<AdminSettings>) => {
+    if (!settings) return;
+    setSettingsLoading(true);
+
+    const success = await adminAction('updateSettings', { settings: updates });
+    if (success) {
+      setSettings(prev => prev ? { ...prev, ...updates } : null);
+    }
+    setSettingsLoading(false);
   };
 
   if (!isAuthenticated) {
@@ -410,7 +479,7 @@ export default function AdminPage() {
       {/* Tabs */}
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          {(['stats', 'users', 'purchases', 'announcements', 'activity'] as const).map((tab) => (
+          {(['stats', 'users', 'purchases', 'announcements', 'activity', 'settings'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -430,6 +499,7 @@ export default function AdminPage() {
               {tab === 'purchases' && '💳 '}
               {tab === 'announcements' && '📢 '}
               {tab === 'activity' && '📋 '}
+              {tab === 'settings' && '⚙️ '}
               {tab}
             </button>
           ))}
@@ -882,6 +952,363 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && settings && (
+          <div style={{ display: 'grid', gap: '16px' }}>
+            {/* Maintenance Mode Banner */}
+            {settings.maintenanceMode && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '2px solid rgba(239, 68, 68, 0.5)',
+                borderRadius: '12px',
+                padding: '20px',
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔧</div>
+                <h3 style={{ color: '#f87171', margin: '0 0 8px' }}>Maintenance Mode Active</h3>
+                <p style={{ color: '#94a3b8', margin: 0, fontSize: '14px' }}>
+                  {settings.maintenanceMessage}
+                </p>
+              </div>
+            )}
+
+            {/* Quick Actions */}
+            <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', padding: '20px' }}>
+              <h3 style={{ color: '#14b8a6', margin: '0 0 16px', fontSize: '18px' }}>🚀 Quick Actions</h3>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => updateSetting('maintenanceMode', !settings.maintenanceMode)}
+                  disabled={settingsLoading}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: settings.maintenanceMode ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    color: 'white',
+                    fontWeight: '700',
+                    cursor: settingsLoading ? 'not-allowed' : 'pointer',
+                    opacity: settingsLoading ? 0.7 : 1,
+                  }}
+                >
+                  {settings.maintenanceMode ? '✅ End Maintenance' : '🔧 Enable Maintenance'}
+                </button>
+                <button
+                  onClick={() => updateMultipleSettings({
+                    multiplayerEnabled: true,
+                    tournamentsEnabled: true,
+                    referralsEnabled: true,
+                    dailyRewardsEnabled: true,
+                    friendsEnabled: true,
+                    chatEnabled: true,
+                    shopEnabled: true,
+                  })}
+                  disabled={settingsLoading}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '10px',
+                    border: '1px solid #334155',
+                    background: '#0f172a',
+                    color: '#4ade80',
+                    fontWeight: '600',
+                    cursor: settingsLoading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  ✅ Enable All Features
+                </button>
+                <button
+                  onClick={() => updateMultipleSettings({
+                    multiplayerEnabled: false,
+                    tournamentsEnabled: false,
+                    referralsEnabled: false,
+                    dailyRewardsEnabled: false,
+                    friendsEnabled: false,
+                    chatEnabled: false,
+                    shopEnabled: false,
+                  })}
+                  disabled={settingsLoading}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '10px',
+                    border: '1px solid #334155',
+                    background: '#0f172a',
+                    color: '#f87171',
+                    fontWeight: '600',
+                    cursor: settingsLoading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  🚫 Disable All Features
+                </button>
+              </div>
+            </div>
+
+            {/* Feature Toggles Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '16px' }}>
+              {/* Game Features */}
+              <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', padding: '20px' }}>
+                <h3 style={{ color: '#14b8a6', margin: '0 0 16px', fontSize: '18px' }}>🎮 Game Features</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <ToggleSwitch
+                    label="Multiplayer Mode"
+                    description="Allow players to join multiplayer rooms"
+                    enabled={settings.multiplayerEnabled}
+                    onChange={(v) => updateSetting('multiplayerEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Tournaments"
+                    description="Enable tournament system"
+                    enabled={settings.tournamentsEnabled}
+                    onChange={(v) => updateSetting('tournamentsEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Tutorial"
+                    description="Show tutorial for new players"
+                    enabled={settings.tutorialEnabled}
+                    onChange={(v) => updateSetting('tutorialEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Spectator Mode"
+                    description="Allow spectating games"
+                    enabled={settings.spectatorModeEnabled}
+                    onChange={(v) => updateSetting('spectatorModeEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Sound Effects"
+                    description="Enable game sounds by default"
+                    enabled={settings.soundEnabled}
+                    onChange={(v) => updateSetting('soundEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                </div>
+              </div>
+
+              {/* Social Features */}
+              <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', padding: '20px' }}>
+                <h3 style={{ color: '#14b8a6', margin: '0 0 16px', fontSize: '18px' }}>👥 Social Features</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <ToggleSwitch
+                    label="Friends System"
+                    description="Allow adding friends"
+                    enabled={settings.friendsEnabled}
+                    onChange={(v) => updateSetting('friendsEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Chat"
+                    description="Enable in-game chat"
+                    enabled={settings.chatEnabled}
+                    onChange={(v) => updateSetting('chatEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Chat Moderation"
+                    description="Filter inappropriate content"
+                    enabled={settings.chatModerationEnabled}
+                    onChange={(v) => updateSetting('chatModerationEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Leaderboard"
+                    description="Show global leaderboards"
+                    enabled={settings.leaderboardEnabled}
+                    onChange={(v) => updateSetting('leaderboardEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Social Sharing"
+                    description="Allow sharing wins/achievements"
+                    enabled={settings.socialSharingEnabled}
+                    onChange={(v) => updateSetting('socialSharingEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                </div>
+              </div>
+
+              {/* Rewards & Economy */}
+              <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', padding: '20px' }}>
+                <h3 style={{ color: '#14b8a6', margin: '0 0 16px', fontSize: '18px' }}>💰 Rewards & Economy</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <ToggleSwitch
+                    label="Referral System"
+                    description="Reward users for referrals"
+                    enabled={settings.referralsEnabled}
+                    onChange={(v) => updateSetting('referralsEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Daily Rewards"
+                    description="Give daily login bonuses"
+                    enabled={settings.dailyRewardsEnabled}
+                    onChange={(v) => updateSetting('dailyRewardsEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Achievements"
+                    description="Track and reward achievements"
+                    enabled={settings.achievementsEnabled}
+                    onChange={(v) => updateSetting('achievementsEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Shop"
+                    description="Enable the token shop"
+                    enabled={settings.shopEnabled}
+                    onChange={(v) => updateSetting('shopEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Token Purchases"
+                    description="Allow buying tokens with real money"
+                    enabled={settings.tokenPurchasesEnabled}
+                    onChange={(v) => updateSetting('tokenPurchasesEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                </div>
+              </div>
+
+              {/* Access Control */}
+              <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', padding: '20px' }}>
+                <h3 style={{ color: '#14b8a6', margin: '0 0 16px', fontSize: '18px' }}>🔐 Access Control</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <ToggleSwitch
+                    label="New Signups"
+                    description="Allow new account creation"
+                    enabled={settings.signupsEnabled}
+                    onChange={(v) => updateSetting('signupsEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Guest Mode"
+                    description="Allow playing without account"
+                    enabled={settings.guestModeEnabled}
+                    onChange={(v) => updateSetting('guestModeEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                  <ToggleSwitch
+                    label="Push Notifications"
+                    description="Send push notifications"
+                    enabled={settings.pushNotificationsEnabled}
+                    onChange={(v) => updateSetting('pushNotificationsEnabled', v)}
+                    loading={settingsLoading}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Numeric Settings */}
+            <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', padding: '20px' }}>
+              <h3 style={{ color: '#14b8a6', margin: '0 0 16px', fontSize: '18px' }}>🔢 Game Settings</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                <NumberInput
+                  label="Default Ante"
+                  value={settings.defaultAnte}
+                  onChange={(v) => updateSetting('defaultAnte', v)}
+                  min={1}
+                  max={100}
+                  loading={settingsLoading}
+                />
+                <NumberInput
+                  label="Max Players Per Room"
+                  value={settings.maxPlayersPerRoom}
+                  onChange={(v) => updateSetting('maxPlayersPerRoom', v)}
+                  min={2}
+                  max={12}
+                  loading={settingsLoading}
+                />
+                <NumberInput
+                  label="Decision Time (seconds)"
+                  value={settings.decisionTimeSeconds}
+                  onChange={(v) => updateSetting('decisionTimeSeconds', v)}
+                  min={1}
+                  max={30}
+                  loading={settingsLoading}
+                />
+                <NumberInput
+                  label="Min Tokens to Play"
+                  value={settings.minTokensToPlay}
+                  onChange={(v) => updateSetting('minTokensToPlay', v)}
+                  min={0}
+                  max={100}
+                  loading={settingsLoading}
+                />
+                <NumberInput
+                  label="Max Ante Multiplier"
+                  value={settings.maxAnteMultiplier}
+                  onChange={(v) => updateSetting('maxAnteMultiplier', v)}
+                  min={1}
+                  max={50}
+                  loading={settingsLoading}
+                />
+                <NumberInput
+                  label="Daily Reward (base)"
+                  value={settings.dailyRewardBaseAmount}
+                  onChange={(v) => updateSetting('dailyRewardBaseAmount', v)}
+                  min={1}
+                  max={500}
+                  loading={settingsLoading}
+                />
+                <NumberInput
+                  label="Referral Bonus"
+                  value={settings.referralBonus}
+                  onChange={(v) => updateSetting('referralBonus', v)}
+                  min={0}
+                  max={1000}
+                  loading={settingsLoading}
+                />
+                <NumberInput
+                  label="Welcome Bonus"
+                  value={settings.welcomeBonus}
+                  onChange={(v) => updateSetting('welcomeBonus', v)}
+                  min={0}
+                  max={1000}
+                  loading={settingsLoading}
+                />
+              </div>
+            </div>
+
+            {/* Maintenance Message */}
+            <div style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', padding: '20px' }}>
+              <h3 style={{ color: '#14b8a6', margin: '0 0 16px', fontSize: '18px' }}>🔧 Maintenance Message</h3>
+              <textarea
+                value={settings.maintenanceMessage}
+                onChange={(e) => setSettings(prev => prev ? { ...prev, maintenanceMessage: e.target.value } : null)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid #334155',
+                  background: '#0f172a',
+                  color: 'white',
+                  fontSize: '14px',
+                  minHeight: '80px',
+                  resize: 'vertical',
+                  boxSizing: 'border-box',
+                  marginBottom: '12px',
+                }}
+              />
+              <button
+                onClick={() => updateSetting('maintenanceMessage', settings.maintenanceMessage)}
+                disabled={settingsLoading}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#14b8a6',
+                  color: '#0f172a',
+                  fontWeight: '600',
+                  cursor: settingsLoading ? 'not-allowed' : 'pointer',
+                  opacity: settingsLoading ? 0.7 : 1,
+                }}
+              >
+                Save Message
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* User Management Modal */}
@@ -1273,3 +1700,161 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
 };
+
+function ToggleSwitch({
+  label,
+  description,
+  enabled,
+  onChange,
+  loading,
+}: {
+  label: string;
+  description: string;
+  enabled: boolean;
+  onChange: (value: boolean) => void;
+  loading: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px',
+        background: '#0f172a',
+        borderRadius: '8px',
+        opacity: loading ? 0.7 : 1,
+      }}
+    >
+      <div style={{ flex: 1 }}>
+        <div style={{ color: '#cbd5e1', fontWeight: '600', fontSize: '14px' }}>{label}</div>
+        <div style={{ color: '#64748b', fontSize: '12px' }}>{description}</div>
+      </div>
+      <button
+        onClick={() => onChange(!enabled)}
+        disabled={loading}
+        style={{
+          width: '52px',
+          height: '28px',
+          borderRadius: '14px',
+          border: 'none',
+          background: enabled ? '#14b8a6' : '#475569',
+          position: 'relative',
+          cursor: loading ? 'not-allowed' : 'pointer',
+          transition: 'background 0.2s',
+        }}
+      >
+        <div
+          style={{
+            width: '22px',
+            height: '22px',
+            borderRadius: '50%',
+            background: 'white',
+            position: 'absolute',
+            top: '3px',
+            left: enabled ? '27px' : '3px',
+            transition: 'left 0.2s',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          }}
+        />
+      </button>
+    </div>
+  );
+}
+
+function NumberInput({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  loading,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min: number;
+  max: number;
+  loading: boolean;
+}) {
+  const [localValue, setLocalValue] = useState(value.toString());
+
+  useEffect(() => {
+    setLocalValue(value.toString());
+  }, [value]);
+
+  const handleBlur = () => {
+    const numValue = parseInt(localValue) || min;
+    const clampedValue = Math.min(max, Math.max(min, numValue));
+    if (clampedValue !== value) {
+      onChange(clampedValue);
+    }
+    setLocalValue(clampedValue.toString());
+  };
+
+  return (
+    <div style={{ opacity: loading ? 0.7 : 1 }}>
+      <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '6px' }}>
+        {label}
+      </label>
+      <div style={{ display: 'flex', gap: '4px' }}>
+        <button
+          onClick={() => {
+            const newValue = Math.max(min, value - 1);
+            onChange(newValue);
+          }}
+          disabled={loading || value <= min}
+          style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            border: '1px solid #334155',
+            background: '#0f172a',
+            color: '#94a3b8',
+            fontSize: '18px',
+            cursor: loading || value <= min ? 'not-allowed' : 'pointer',
+          }}
+        >
+          -
+        </button>
+        <input
+          type="text"
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          disabled={loading}
+          style={{
+            flex: 1,
+            padding: '8px',
+            borderRadius: '8px',
+            border: '1px solid #334155',
+            background: '#0f172a',
+            color: 'white',
+            fontSize: '14px',
+            textAlign: 'center',
+            width: '60px',
+          }}
+        />
+        <button
+          onClick={() => {
+            const newValue = Math.min(max, value + 1);
+            onChange(newValue);
+          }}
+          disabled={loading || value >= max}
+          style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            border: '1px solid #334155',
+            background: '#0f172a',
+            color: '#94a3b8',
+            fontSize: '18px',
+            cursor: loading || value >= max ? 'not-allowed' : 'pointer',
+          }}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}

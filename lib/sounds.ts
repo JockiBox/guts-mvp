@@ -19,11 +19,28 @@ function getAudioContext(): AudioContext {
 // Master volume (0-1)
 let masterVolume = 0.3;
 
+// Load volume from localStorage on init
+if (typeof window !== 'undefined') {
+  const stored = localStorage.getItem('guts_master_volume');
+  if (stored !== null) {
+    masterVolume = parseFloat(stored);
+  }
+}
+
 export function setMasterVolume(volume: number) {
   masterVolume = Math.max(0, Math.min(1, volume));
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('guts_master_volume', volume.toString());
+  }
 }
 
 export function getMasterVolume(): number {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('guts_master_volume');
+    if (stored !== null) {
+      masterVolume = parseFloat(stored);
+    }
+  }
   return masterVolume;
 }
 

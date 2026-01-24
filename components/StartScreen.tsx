@@ -14,7 +14,9 @@ import { ProfileModal } from './ProfileModal';
 import { Tutorial, useTutorial } from './Tutorial';
 import { MultiplayerLobby } from './MultiplayerLobby';
 import { MultiplayerRoom } from './MultiplayerRoom';
+import { MultiplayerGame } from './MultiplayerGame';
 import { FriendsModal } from './FriendsModal';
+import { useAdminSettings } from '@/lib/useAdminSettings';
 import type { MultiplayerRoom as MultiplayerRoomType, RoomPlayer } from '@/lib/multiplayer';
 
 interface StartScreenProps {
@@ -28,6 +30,7 @@ interface StartScreenProps {
 
 export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCount, difficulty, setDifficulty }: StartScreenProps) {
   const { user, loading: userLoading, canClaimDaily, fetchProfile, claimDaily, buyItem, purchaseTokens } = useUser();
+  const { isEnabled } = useAdminSettings();
   const [topProfiles, setTopProfiles] = useState<AIProfile[]>([]);
   const [heartedIds, setHeartedIds] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState<PlayerStats | null>(null);
@@ -45,7 +48,18 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<MultiplayerRoomType | null>(null);
   const [roomPlayers, setRoomPlayers] = useState<RoomPlayer[]>([]);
+  const [showMultiplayerGame, setShowMultiplayerGame] = useState(false);
   const { shouldShowTutorial } = useTutorial();
+
+  // Feature flags
+  const multiplayerEnabled = isEnabled('multiplayerEnabled');
+  const tournamentsEnabled = isEnabled('tournamentsEnabled');
+  const friendsEnabled = isEnabled('friendsEnabled');
+  const dailyRewardsEnabled = isEnabled('dailyRewardsEnabled');
+  const shopEnabled = isEnabled('shopEnabled');
+  const leaderboardEnabled = isEnabled('leaderboardEnabled');
+  const achievementsEnabled = isEnabled('achievementsEnabled');
+  const tutorialEnabled = isEnabled('tutorialEnabled');
 
   useEffect(() => {
     setTopProfiles(getTop10Profiles());
@@ -375,48 +389,52 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
                 marginBottom: '16px',
               }}
             >
-              <button
-                onClick={() => {
-                  playClick();
-                  if (!user) {
-                    setShowAuthModal(true);
-                  } else {
-                    setShowMultiplayerLobby(true);
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: '14px 12px',
-                  borderRadius: '12px',
-                  border: '2px solid #22c55e',
-                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.05))',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: '24px', marginBottom: '4px' }}>🎮</div>
-                <div style={{ color: '#4ade80', fontWeight: '700', fontSize: '14px' }}>Multiplayer</div>
-                <div style={{ color: '#64748b', fontSize: '10px' }}>Play vs humans</div>
-              </button>
+              {multiplayerEnabled && (
+                <button
+                  onClick={() => {
+                    playClick();
+                    if (!user) {
+                      setShowAuthModal(true);
+                    } else {
+                      setShowMultiplayerLobby(true);
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '14px 12px',
+                    borderRadius: '12px',
+                    border: '2px solid #22c55e',
+                    background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.05))',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: '24px', marginBottom: '4px' }}>🎮</div>
+                  <div style={{ color: '#4ade80', fontWeight: '700', fontSize: '14px' }}>Multiplayer</div>
+                  <div style={{ color: '#64748b', fontSize: '10px' }}>Play vs humans</div>
+                </button>
+              )}
 
-              <Link
-                href="/tournaments"
-                style={{
-                  flex: 1,
-                  padding: '14px 12px',
-                  borderRadius: '12px',
-                  border: '2px solid #fbbf24',
-                  background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(217, 119, 6, 0.05))',
-                  textDecoration: 'none',
-                  textAlign: 'center',
-                  display: 'block',
-                }}
-                onClick={() => playClick()}
-              >
-                <div style={{ fontSize: '24px', marginBottom: '4px' }}>🏆</div>
-                <div style={{ color: '#fbbf24', fontWeight: '700', fontSize: '14px' }}>Tournaments</div>
-                <div style={{ color: '#64748b', fontSize: '10px' }}>Win big prizes</div>
-              </Link>
+              {tournamentsEnabled && (
+                <Link
+                  href="/tournaments"
+                  style={{
+                    flex: 1,
+                    padding: '14px 12px',
+                    borderRadius: '12px',
+                    border: '2px solid #fbbf24',
+                    background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(217, 119, 6, 0.05))',
+                    textDecoration: 'none',
+                    textAlign: 'center',
+                    display: 'block',
+                  }}
+                  onClick={() => playClick()}
+                >
+                  <div style={{ fontSize: '24px', marginBottom: '4px' }}>🏆</div>
+                  <div style={{ color: '#fbbf24', fontWeight: '700', fontSize: '14px' }}>Tournaments</div>
+                  <div style={{ color: '#64748b', fontSize: '10px' }}>Win big prizes</div>
+                </Link>
+              )}
             </div>
 
             {/* Solo Play Header */}
@@ -981,11 +999,26 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
           onLeave={() => {
             setCurrentRoom(null);
             setRoomPlayers([]);
+            setShowMultiplayerGame(false);
           }}
           onGameStart={(room, players) => {
+            setCurrentRoom(room);
             setRoomPlayers(players);
-            // TODO: Transition to multiplayer game mode
-            console.log('Game starting!', room, players);
+            setShowMultiplayerGame(true);
+          }}
+        />
+      )}
+
+      {/* Multiplayer Game */}
+      {showMultiplayerGame && currentRoom && user && roomPlayers.length > 0 && (
+        <MultiplayerGame
+          room={currentRoom}
+          user={user}
+          initialPlayers={roomPlayers}
+          onLeave={() => {
+            setShowMultiplayerGame(false);
+            setCurrentRoom(null);
+            setRoomPlayers([]);
           }}
         />
       )}

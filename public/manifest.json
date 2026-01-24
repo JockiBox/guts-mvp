@@ -9,24 +9,15 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshot-1.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow"
+      "src": "/favicon.svg",
+      "sizes": "32x32",
+      "type": "image/svg+xml"
     }
   ],
   "categories": ["games", "entertainment"],
@@ -34,8 +25,7 @@
     {
       "name": "Play Now",
       "url": "/",
-      "description": "Start playing GUTS",
-      "icons": [{"src": "/icon-192.png", "sizes": "192x192"}]
+      "description": "Start playing GUTS"
     },
     {
       "name": "Leaderboard",

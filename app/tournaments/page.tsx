@@ -2,50 +2,158 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
-
-interface Tournament {
-  id: string;
-  name: string;
-  description: string;
-  entry_fee: number;
-  prize_pool: number;
-  max_players: number;
-  status: 'upcoming' | 'active' | 'completed';
-  starts_at: string;
-  ends_at: string | null;
-  participant_count?: number;
-}
+import { useUser } from '@/lib/useUser';
+import { useAdminSettings } from '@/lib/useAdminSettings';
+import { getTournaments, joinTournament, leaveTournament, isUserRegistered, type Tournament } from '@/lib/tournaments';
+import { playClick, playSuccess, playError, playTokens } from '@/lib/sounds';
 
 export default function TournamentsPage() {
+  const { user, fetchProfile } = useUser();
+  const { isEnabled } = useAdminSettings();
+  const tournamentsEnabled = isEnabled('tournamentsEnabled');
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'active' | 'completed'>('upcoming');
+  const [registeredTournaments, setRegisteredTournaments] = useState<Set<string>>(new Set());
+  const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => {
-    fetchTournaments();
-  }, []);
-
-  const fetchTournaments = async () => {
+  const fetchTournamentsData = async () => {
     try {
-      const { data, error } = await supabase
-        .from('tournaments')
-        .select('*, tournament_participants(count)')
-        .order('starts_at', { ascending: true });
-
-      if (error) throw error;
-
-      const tournamentsWithCount = data?.map(t => ({
-        ...t,
-        participant_count: t.tournament_participants?.[0]?.count || 0,
-      })) || [];
-
-      setTournaments(tournamentsWithCount);
+      const data = await getTournaments();
+      setTournaments(data);
     } catch (error) {
       console.error('Error fetching tournaments:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const checkRegistrations = async () => {
+    if (!user) return;
+    const registered = new Set<string>();
+    for (const t of tournaments) {
+      if (await isUserRegistered(t.id, user.id)) {
+        registered.add(t.id);
+      }
+    }
+    setRegisteredTournaments(registered);
+  };
+
+  useEffect(() => {
+    if (tournamentsEnabled) {
+      fetchTournamentsData();
+    }
+  }, [tournamentsEnabled]);
+
+  // Check registered tournaments when user changes
+  useEffect(() => {
+    if (tournamentsEnabled && user && tournaments.length > 0) {
+      checkRegistrations();
+    }
+  }, [tournamentsEnabled, user, tournaments]);
+
+  // Check if tournaments are disabled
+  if (!tournamentsEnabled) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+          padding: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <div
+          style={{
+            background: '#1e293b',
+            borderRadius: '24px',
+            padding: '48px',
+            border: '1px solid #334155',
+            maxWidth: '500px',
+            width: '100%',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: '64px', marginBottom: '16px' }}>🏆</div>
+          <h1 style={{ color: '#94a3b8', fontSize: '24px', fontWeight: '700', marginBottom: '12px' }}>
+            Tournaments Coming Soon
+          </h1>
+          <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '24px' }}>
+            Tournaments are currently being prepared. Check back soon for exciting competitions!
+          </p>
+          <Link
+            href="/"
+            style={{
+              display: 'inline-block',
+              padding: '12px 24px',
+              background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+              borderRadius: '10px',
+              color: 'white',
+              fontWeight: '600',
+              textDecoration: 'none',
+            }}
+          >
+            Back to Game
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const handleJoin = async (tournament: Tournament) => {
+    if (!user) {
+      setMessage({ type: 'error', text: 'Please sign in to join tournaments' });
+      return;
+    }
+
+    playClick();
+    setJoiningId(tournament.id);
+    setMessage(null);
+
+    const result = await joinTournament(tournament.id, user.id);
+
+    if (result.success) {
+      playSuccess();
+      playTokens();
+      setMessage({ type: 'success', text: `Successfully joined ${tournament.name}!` });
+      setRegisteredTournaments((prev) => new Set([...prev, tournament.id]));
+      fetchProfile(); // Refresh user tokens
+      fetchTournamentsData(); // Refresh tournament data
+    } else {
+      playError();
+      setMessage({ type: 'error', text: result.error || 'Failed to join tournament' });
+    }
+
+    setJoiningId(null);
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleLeave = async (tournament: Tournament) => {
+    if (!user) return;
+
+    playClick();
+    setJoiningId(tournament.id);
+
+    const result = await leaveTournament(tournament.id, user.id);
+
+    if (result.success) {
+      setMessage({ type: 'success', text: `Left ${tournament.name}. Entry fee refunded.` });
+      setRegisteredTournaments((prev) => {
+        const next = new Set(prev);
+        next.delete(tournament.id);
+        return next;
+      });
+      fetchProfile();
+      fetchTournamentsData();
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to leave tournament' });
+    }
+
+    setJoiningId(null);
+    setTimeout(() => setMessage(null), 3000);
   };
 
   const filteredTournaments = tournaments.filter(t => t.status === activeTab);
@@ -110,6 +218,24 @@ export default function TournamentsPage() {
             🎮 Play
           </Link>
         </div>
+
+        {/* Message */}
+        {message && (
+          <div
+            style={{
+              background: message.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+              border: `1px solid ${message.type === 'success' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+              borderRadius: '10px',
+              padding: '12px 16px',
+              marginBottom: '20px',
+              color: message.type === 'success' ? '#4ade80' : '#f87171',
+              fontSize: '14px',
+              textAlign: 'center',
+            }}
+          >
+            {message.text}
+          </div>
+        )}
 
         {/* Tabs */}
         <div
@@ -264,33 +390,58 @@ export default function TournamentsPage() {
                   {/* Action Button */}
                   {tournament.status === 'upcoming' && (
                     <div style={{ padding: '0 20px 20px' }}>
-                      <button
-                        style={{
-                          width: '100%',
-                          padding: '14px',
-                          fontSize: '16px',
-                          fontWeight: '700',
-                          color: 'white',
-                          background: (tournament.participant_count || 0) >= tournament.max_players
-                            ? '#475569'
-                            : 'linear-gradient(135deg, #14b8a6, #0f766e)',
-                          border: 'none',
-                          borderRadius: '10px',
-                          cursor: (tournament.participant_count || 0) >= tournament.max_players
-                            ? 'not-allowed'
-                            : 'pointer',
-                          boxShadow: (tournament.participant_count || 0) >= tournament.max_players
-                            ? 'none'
-                            : '0 4px 14px rgba(20, 184, 166, 0.4)',
-                        }}
-                        disabled={(tournament.participant_count || 0) >= tournament.max_players}
-                      >
-                        {(tournament.participant_count || 0) >= tournament.max_players
-                          ? 'Tournament Full'
-                          : tournament.entry_fee === 0
-                            ? 'Join Free'
-                            : `Join for ${tournament.entry_fee} tokens`}
-                      </button>
+                      {registeredTournaments.has(tournament.id) ? (
+                        <button
+                          onClick={() => handleLeave(tournament)}
+                          disabled={joiningId === tournament.id}
+                          style={{
+                            width: '100%',
+                            padding: '14px',
+                            fontSize: '16px',
+                            fontWeight: '700',
+                            color: '#f87171',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '2px solid rgba(239, 68, 68, 0.3)',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            opacity: joiningId === tournament.id ? 0.7 : 1,
+                          }}
+                        >
+                          {joiningId === tournament.id ? 'Leaving...' : '✓ Registered - Click to Leave'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleJoin(tournament)}
+                          disabled={(tournament.participant_count || 0) >= tournament.max_players || joiningId === tournament.id}
+                          style={{
+                            width: '100%',
+                            padding: '14px',
+                            fontSize: '16px',
+                            fontWeight: '700',
+                            color: 'white',
+                            background: (tournament.participant_count || 0) >= tournament.max_players
+                              ? '#475569'
+                              : 'linear-gradient(135deg, #14b8a6, #0f766e)',
+                            border: 'none',
+                            borderRadius: '10px',
+                            cursor: (tournament.participant_count || 0) >= tournament.max_players
+                              ? 'not-allowed'
+                              : 'pointer',
+                            boxShadow: (tournament.participant_count || 0) >= tournament.max_players
+                              ? 'none'
+                              : '0 4px 14px rgba(20, 184, 166, 0.4)',
+                            opacity: joiningId === tournament.id ? 0.7 : 1,
+                          }}
+                        >
+                          {joiningId === tournament.id
+                            ? 'Joining...'
+                            : (tournament.participant_count || 0) >= tournament.max_players
+                              ? 'Tournament Full'
+                              : tournament.entry_fee === 0
+                                ? 'Join Free'
+                                : `Join for ${tournament.entry_fee} tokens`}
+                        </button>
+                      )}
                     </div>
                   )}
 
