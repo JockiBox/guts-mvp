@@ -7,7 +7,10 @@ function getStripe() {
   if (!key) {
     throw new Error('Stripe secret key not configured');
   }
-  return new Stripe(key);
+  return new Stripe(key, {
+    maxNetworkRetries: 3,
+    timeout: 30000,
+  });
 }
 
 export async function POST(request: NextRequest) {
