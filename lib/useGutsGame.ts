@@ -47,7 +47,6 @@ export function getHandValue(cards: Card[]): number {
   const val2 = RANK_VALUES[cards[1].rank];
   const ranks = [cards[0].rank, cards[1].rank];
   const isPair = cards[0].rank === cards[1].rank;
-  const isFlush = cards[0].suit === cards[1].suit;
 
   // 6-9 is the BEST hand - "Six Nine" beats everything!
   const isSixNine = (ranks.includes('6') && ranks.includes('9'));
@@ -58,9 +57,7 @@ export function getHandValue(cards: Card[]): number {
   if (isPair) {
     return 1000 + val1;
   }
-  if (isFlush) {
-    return 500 + Math.max(val1, val2);
-  }
+  // Flushes don't matter in GUTS - just high card
   return Math.max(val1, val2) * 15 + Math.min(val1, val2);
 }
 
@@ -73,7 +70,6 @@ export function getHandDescription(cards: Card[]): string {
   const val2 = RANK_VALUES[cards[1].rank];
   const ranks = [cards[0].rank, cards[1].rank];
   const isPair = cards[0].rank === cards[1].rank;
-  const isFlush = cards[0].suit === cards[1].suit;
 
   // Check for the legendary 6-9!
   const isSixNine = (ranks.includes('6') && ranks.includes('9'));
@@ -94,19 +90,13 @@ export function getHandDescription(cards: Card[]): string {
     return rank;
   };
 
-  const suitName = (suit: Suit): string => {
-    return suit.charAt(0).toUpperCase() + suit.slice(1);
-  };
-
   if (isSixNine) {
     return '★ SIX-NINE! ★';
   }
   if (isPair) {
     return `Pair of ${rankName(cards[0].rank)}s`;
   }
-  if (isFlush) {
-    return `${suitName(cards[0].suit)} Flush`;
-  }
+  // No flush bonus in GUTS - just show high card
   const highCard = val1 > val2 ? cards[0] : cards[1];
   const lowCard = val1 > val2 ? cards[1] : cards[0];
   return `High Card: ${rankName(highCard.rank)}, ${rankName(lowCard.rank)}`;

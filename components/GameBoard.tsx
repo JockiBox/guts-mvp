@@ -8,7 +8,7 @@ import { StartScreen } from './StartScreen';
 import { AuthModal } from './AuthModal';
 import { ShopModal } from './ShopModal';
 import { ProfileModal } from './ProfileModal';
-import { getHandDescription } from '@/lib/useGutsGame';
+import { getHandDescription, getHandValue } from '@/lib/useGutsGame';
 import { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/lib/useUser';
 import { recordGameResult } from '@/lib/supabase';
@@ -163,11 +163,17 @@ export function GameBoard() {
   const [achievementPopup, setAchievementPopup] = useState<Achievement | null>(null);
   const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'copied'>('idle');
   const [dailyRewardToast, setDailyRewardToast] = useState<{ tokens: number; streak: number } | null>(null);
+  const [showAnteAnimation, setShowAnteAnimation] = useState(false);
+  const [displayedPot, setDisplayedPot] = useState(0);
+  const [potPulse, setPotPulse] = useState(false);
+  const [winStreak, setWinStreak] = useState(0);
+  const [closeCallMessage, setCloseCallMessage] = useState<string | null>(null);
 
   const lastCountdown = useRef<number | null>(null);
   const lastPhase = useRef<string>('start');
   const revealSoundPlayed = useRef(false);
   const gameResultRecorded = useRef(false);
+  const lastPot = useRef(0);
 
   // Sync user/guest tokens with game state
   useEffect(() => {
@@ -179,6 +185,70 @@ export function GameBoard() {
       }
     }
   }, [user, setHumanTokens]);
+
+  // Animate pot changes
+  useEffect(() => {
+    if (pot !== lastPot.current) {
+      const diff = pot - lastPot.current;
+
+      // Only animate increases
+      if (diff > 0) {
+        setShowAnteAnimation(true);
+        setPotPulse(true);
+        playTokens();
+
+        // Animate the number counting up
+        const startPot = lastPot.current;
+        const duration = 600;
+        const startTime = Date.now();
+
+        const animate = () => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          // Ease out cubic
+          const eased = 1 - Math.pow(1 - progress, 3);
+          setDisplayedPot(Math.round(startPot + (pot - startPot) * eased));
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          }
+        };
+        requestAnimationFrame(animate);
+
+        setTimeout(() => {
+          setShowAnteAnimation(false);
+          setPotPulse(false);
+        }, 800);
+      } else {
+        setDisplayedPot(pot);
+      }
+
+      lastPot.current = pot;
+    }
+  }, [pot]);
+
+  // Track win streaks
+  useEffect(() => {
+    if (gamePhase === 'summary' && humanPlayer) {
+      if (winners.includes(humanPlayer.id)) {
+        setWinStreak(prev => prev + 1);
+      } else if (losers.includes(humanPlayer.id)) {
+        setWinStreak(0);
+      }
+    }
+  }, [gamePhase, winners, losers, humanPlayer]);
+
+  // Close call detection
+  useEffect(() => {
+    if (gamePhase === 'summary' && humanPlayer && !winners.includes(humanPlayer.id) && !losers.includes(humanPlayer.id)) {
+      // Player dropped but had a winning hand
+      const handValue = getHandValue(humanPlayer.cards);
+      if (handValue > 500) {
+        setCloseCallMessage("You had a strong hand!");
+        setTimeout(() => setCloseCallMessage(null), 2500);
+      }
+    }
+  }, [gamePhase, humanPlayer, winners, losers]);
 
   // Record game results to database (for logged in users) or localStorage (for guests)
   useEffect(() => {
@@ -520,6 +590,58 @@ export function GameBoard() {
         />
       )}
 
+      {/* Win Streak indicator */}
+      {winStreak >= 2 && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '70px',
+            left: '16px',
+            background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.9), rgba(239, 68, 68, 0.9))',
+            borderRadius: '12px',
+            padding: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            zIndex: 300,
+            boxShadow: '0 4px 20px rgba(251, 146, 60, 0.5)',
+            animation: 'streak-fire 1s ease-in-out infinite',
+          }}
+        >
+          <span style={{ fontSize: '24px' }}>🔥</span>
+          <div>
+            <div style={{ color: 'white', fontSize: '14px', fontWeight: '700' }}>
+              {winStreak} WIN STREAK!
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '10px' }}>
+              You&apos;re on fire!
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close call message */}
+      {closeCallMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '120px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(251, 191, 36, 0.9)',
+            borderRadius: '8px',
+            padding: '10px 20px',
+            zIndex: 300,
+            boxShadow: '0 4px 20px rgba(251, 191, 36, 0.4)',
+            animation: 'close-call-slide 2.5s ease-out forwards',
+          }}
+        >
+          <span style={{ color: '#0f172a', fontSize: '14px', fontWeight: '600' }}>
+            😬 {closeCallMessage}
+          </span>
+        </div>
+      )}
+
       {/* Particles */}
       <Particles active={showParticles !== null} type={showParticles || 'win'} />
 
@@ -745,17 +867,70 @@ export function GameBoard() {
             </span>
           </div>
 
+          {/* Ante indicator */}
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.15)',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              border: '2px solid #ef4444',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <span style={{ color: '#f87171', fontSize: '11px', fontWeight: '600' }}>ANTE</span>
+            <span style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '14px' }}>1</span>
+            <span style={{ fontSize: '12px' }}>🪙</span>
+          </div>
+
           {/* Pot display */}
           <div
             style={{
-              background: 'rgba(30, 41, 59, 0.9)',
+              background: potPulse
+                ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.3))'
+                : 'rgba(30, 41, 59, 0.9)',
               borderRadius: '8px',
               padding: '6px 14px',
-              border: '2px solid #334155',
+              border: potPulse ? '2px solid #22c55e' : '2px solid #334155',
+              boxShadow: potPulse ? '0 0 20px rgba(34, 197, 94, 0.5)' : 'none',
+              transition: 'all 0.3s ease',
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
             <span style={{ color: '#94a3b8', fontSize: '12px' }}>POT </span>
-            <span style={{ color: '#22c55e', fontWeight: 'bold', fontSize: '16px' }}>{pot}</span>
+            <span
+              style={{
+                color: '#22c55e',
+                fontWeight: 'bold',
+                fontSize: potPulse ? '18px' : '16px',
+                transition: 'all 0.3s ease',
+              }}
+            >
+              {displayedPot}
+            </span>
+
+            {/* Flying token animation */}
+            {showAnteAnimation && (
+              <>
+                {Array.from({ length: players.filter(p => p.isActive).length }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      bottom: '-20px',
+                      left: `${20 + i * 15}%`,
+                      fontSize: '16px',
+                      animation: `fly-to-pot 0.6s ease-out ${i * 0.1}s forwards`,
+                      opacity: 0,
+                    }}
+                  >
+                    🪙
+                  </div>
+                ))}
+              </>
+            )}
           </div>
 
           {/* User/Auth button */}
@@ -857,6 +1032,105 @@ export function GameBoard() {
             gap: '12px',
           }}
         >
+          {/* Center Pot Display */}
+          <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px',
+                animation: potPulse ? 'pot-burst 0.4s ease-out' : 'none',
+              }}
+            >
+              {/* Token pile visualization */}
+              <div style={{ position: 'relative', width: '120px', height: '60px' }}>
+                {Array.from({ length: Math.min(displayedPot, 10) }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #fbbf24, #d97706)',
+                      border: '2px solid #b45309',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.4)',
+                      left: `${30 + (i % 5) * 12}px`,
+                      top: `${10 + Math.floor(i / 5) * 18}px`,
+                      zIndex: i,
+                      animation: showAnteAnimation && i >= Math.min(displayedPot, 10) - players.filter(p => p.isActive).length
+                        ? 'fly-to-pot 0.5s ease-out' : 'none',
+                    }}
+                  />
+                ))}
+                {displayedPot > 10 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: '-20px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '20px',
+                      color: '#fbbf24',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    +{displayedPot - 10}
+                  </div>
+                )}
+              </div>
+
+              {/* Pot amount */}
+              <div
+                style={{
+                  background: potPulse
+                    ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(217, 119, 6, 0.3))'
+                    : 'rgba(30, 41, 59, 0.9)',
+                  borderRadius: '12px',
+                  padding: '8px 24px',
+                  border: potPulse ? '3px solid #fbbf24' : '2px solid #334155',
+                  boxShadow: potPulse
+                    ? '0 0 30px rgba(251, 191, 36, 0.5)'
+                    : '0 4px 20px rgba(0, 0, 0, 0.3)',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span style={{ color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>POT</span>
+                <span
+                  style={{
+                    color: '#fbbf24',
+                    fontWeight: '900',
+                    fontSize: potPulse ? '32px' : '28px',
+                    textShadow: potPulse ? '0 0 20px rgba(251, 191, 36, 0.8)' : '0 0 10px rgba(251, 191, 36, 0.4)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {displayedPot}
+                </span>
+                <span style={{ fontSize: '20px' }}>🪙</span>
+              </div>
+
+              {/* Ghost count indicator */}
+              {ghostHands.length > 0 && gamePhase === 'decision' && (
+                <div
+                  style={{
+                    color: '#a855f7',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    animation: 'pulse 2s ease-in-out infinite',
+                  }}
+                >
+                  <span>👻</span> {ghostHands.length} Ghost{ghostHands.length > 1 ? 's' : ''} Waiting
+                </div>
+              )}
+            </div>
+
           {/* DRAMATIC COUNTDOWN */}
           {isDecisionPhase && countdown !== null && countdown > 0 && (
             <div
@@ -1093,18 +1367,75 @@ export function GameBoard() {
                     ))}
                   </div>
 
-                  {/* Hand description */}
+                  {/* Hand description with strength indicator */}
                   {humanPlayer.cards.length === 2 && (
-                    <div
-                      style={{
-                        color: hasSixNine ? '#e879f9' : '#5eead4',
-                        fontWeight: hasSixNine ? 900 : 600,
-                        fontSize: hasSixNine ? '22px' : '16px',
-                        textShadow: hasSixNine ? '0 0 20px rgba(232,121,249,0.8)' : 'none',
-                        animation: hasSixNine ? 'rainbow-text 2s linear infinite' : 'none',
-                      }}
-                    >
-                      {getHandDescription(humanPlayer.cards)}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <div
+                        style={{
+                          color: hasSixNine ? '#e879f9' : '#5eead4',
+                          fontWeight: hasSixNine ? 900 : 600,
+                          fontSize: hasSixNine ? '22px' : '16px',
+                          textShadow: hasSixNine ? '0 0 20px rgba(232,121,249,0.8)' : 'none',
+                          animation: hasSixNine ? 'rainbow-text 2s linear infinite' : 'none',
+                        }}
+                      >
+                        {getHandDescription(humanPlayer.cards)}
+                      </div>
+
+                      {/* Hand strength meter */}
+                      {isDecisionPhase && (
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '2px',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: '80px',
+                              height: '6px',
+                              background: '#1e293b',
+                              borderRadius: '3px',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: `${Math.min(100, (getHandValue(humanPlayer.cards) / 200) * 100)}%`,
+                                height: '100%',
+                                background:
+                                  getHandValue(humanPlayer.cards) > 1000
+                                    ? 'linear-gradient(90deg, #22c55e, #4ade80)'
+                                    : getHandValue(humanPlayer.cards) > 150
+                                      ? 'linear-gradient(90deg, #fbbf24, #f59e0b)'
+                                      : 'linear-gradient(90deg, #ef4444, #f87171)',
+                                borderRadius: '3px',
+                                transition: 'width 0.3s ease',
+                              }}
+                            />
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              color:
+                                getHandValue(humanPlayer.cards) > 1000
+                                  ? '#4ade80'
+                                  : getHandValue(humanPlayer.cards) > 150
+                                    ? '#fbbf24'
+                                    : '#f87171',
+                              animation: 'hand-strength-pulse 2s ease-in-out infinite',
+                            }}
+                          >
+                            {getHandValue(humanPlayer.cards) > 1000
+                              ? '🔥 STRONG'
+                              : getHandValue(humanPlayer.cards) > 150
+                                ? '👍 DECENT'
+                                : '😬 WEAK'}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1429,6 +1760,30 @@ export function GameBoard() {
         @keyframes pot-glow-intense {
           0%, 100% { box-shadow: 0 0 20px rgba(251,191,36,0.3), 0 0 40px rgba(251,191,36,0.2); }
           50% { box-shadow: 0 0 40px rgba(251,191,36,0.6), 0 0 80px rgba(251,191,36,0.4); }
+        }
+        @keyframes fly-to-pot {
+          0% { transform: translateY(0) scale(1); opacity: 1; }
+          50% { transform: translateY(-30px) scale(1.3); opacity: 1; }
+          100% { transform: translateY(-50px) scale(0.5); opacity: 0; }
+        }
+        @keyframes streak-fire {
+          0%, 100% { transform: scale(1); filter: brightness(1); }
+          50% { transform: scale(1.2); filter: brightness(1.3); }
+        }
+        @keyframes pot-burst {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.15); }
+          100% { transform: scale(1); }
+        }
+        @keyframes close-call-slide {
+          0% { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+          20% { transform: translateX(-50%) translateY(0); opacity: 1; }
+          80% { transform: translateX(-50%) translateY(0); opacity: 1; }
+          100% { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+        }
+        @keyframes hand-strength-pulse {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
         }
         @media (max-width: 768px) {
           .hold-drop-btn {
