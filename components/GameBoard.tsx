@@ -6,7 +6,25 @@ import { Pot } from './Pot';
 import { Card } from './Card';
 import { StartScreen } from './StartScreen';
 import { getHandDescription } from '@/lib/useGutsGame';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import {
+  playClick,
+  playCardFlip,
+  playCountdown,
+  playHold,
+  playDrop,
+  playWin,
+  playLose,
+  playGhostAppear,
+  playSixNine,
+  playTokens,
+  playNewRound,
+  playRevealStart,
+  isSoundEnabled,
+  setSoundEnabled,
+} from '@/lib/sounds';
+import { type Achievement } from '@/lib/stats';
+import { shareResult, downloadResultCard, type ShareData } from '@/lib/share';
 
 // Particle component for celebrations
 function Particles({ active, type }: { active: boolean; type: 'win' | 'sixnine' | 'lose' }) {
@@ -67,7 +85,7 @@ function Particles({ active, type }: { active: boolean; type: 'win' | 'sixnine' 
 }
 
 export function GameBoard() {
-  const { state, humanPlayer, startGame, makeHumanDecision, nextRound, playerCount, setPlayerCount } = useGutsGame();
+  const { state, humanPlayer, startGame, makeHumanDecision, nextRound, playerCount, setPlayerCount, heartProfile, isProfileHearted, difficulty, setDifficulty, newAchievements, clearNewAchievements } = useGutsGame();
   const {
     players,
     pot,
@@ -83,6 +101,72 @@ export function GameBoard() {
   const [shake, setShake] = useState(false);
   const [showParticles, setShowParticles] = useState<'win' | 'sixnine' | 'lose' | null>(null);
   const [flashColor, setFlashColor] = useState<string | null>(null);
+  const [sixNineReveal, setSixNineReveal] = useState<{ name: string; cards: string[] } | null>(null);
+  const [soundOn, setSoundOn] = useState(true);
+  const [achievementPopup, setAchievementPopup] = useState<Achievement | null>(null);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'copied'>('idle');
+  const lastCountdown = useRef<number | null>(null);
+  const lastPhase = useRef<string>('start');
+  const revealSoundPlayed = useRef(false);
+
+  // Initialize sound state from localStorage
+  useEffect(() => {
+    setSoundOn(isSoundEnabled());
+  }, []);
+
+  // Toggle sound
+  const toggleSound = () => {
+    const newState = !soundOn;
+    setSoundOn(newState);
+    setSoundEnabled(newState);
+    if (newState) playClick();
+  };
+
+  // Share result
+  const handleShare = async () => {
+    if (!humanPlayer) return;
+
+    const isSixNineHand = humanPlayer.cards.length === 2 &&
+      [humanPlayer.cards[0].rank, humanPlayer.cards[1].rank].includes('6') &&
+      [humanPlayer.cards[0].rank, humanPlayer.cards[1].rank].includes('9');
+
+    const shareData: ShareData = {
+      result: winners.includes(humanPlayer.id) ? 'win' : losers.includes(humanPlayer.id) ? 'lose' : 'drop',
+      handDescription: getHandDescription(humanPlayer.cards),
+      potSize: pot,
+      roundNumber,
+      opponentCount: players.filter(p => !p.isHuman && p.isActive).length,
+      isSixNine: isSixNineHand,
+      beatGhost: winners.includes(humanPlayer.id) && ghostHands.length > 0,
+    };
+
+    playClick();
+    const success = await shareResult(shareData);
+    setShareStatus(success ? 'shared' : 'copied');
+    setTimeout(() => setShareStatus('idle'), 2000);
+  };
+
+  // Download share card
+  const handleDownload = () => {
+    if (!humanPlayer) return;
+
+    const isSixNineHand = humanPlayer.cards.length === 2 &&
+      [humanPlayer.cards[0].rank, humanPlayer.cards[1].rank].includes('6') &&
+      [humanPlayer.cards[0].rank, humanPlayer.cards[1].rank].includes('9');
+
+    const shareData: ShareData = {
+      result: winners.includes(humanPlayer.id) ? 'win' : losers.includes(humanPlayer.id) ? 'lose' : 'drop',
+      handDescription: getHandDescription(humanPlayer.cards),
+      potSize: pot,
+      roundNumber,
+      opponentCount: players.filter(p => !p.isHuman && p.isActive).length,
+      isSixNine: isSixNineHand,
+      beatGhost: winners.includes(humanPlayer.id) && ghostHands.length > 0,
+    };
+
+    playClick();
+    downloadResultCard(shareData);
+  };
 
   // Trigger effects on game events
   useEffect(() => {
@@ -90,10 +174,13 @@ export function GameBoard() {
       if (winners.includes(humanPlayer.id)) {
         setShowParticles('win');
         setFlashColor('rgba(34, 197, 94, 0.3)');
+        playWin();
+        playTokens();
       } else if (losers.includes(humanPlayer.id)) {
         setShake(true);
         setShowParticles('lose');
         setFlashColor('rgba(239, 68, 68, 0.3)');
+        playLose();
       }
 
       const timer = setTimeout(() => {
@@ -112,10 +199,120 @@ export function GameBoard() {
   useEffect(() => {
     if (hasSixNine && gamePhase === 'decision') {
       setShowParticles('sixnine');
+      playSixNine();
       const timer = setTimeout(() => setShowParticles(null), 2000);
       return () => clearTimeout(timer);
     }
   }, [hasSixNine, gamePhase]);
+
+  // Sound effects for countdown
+  useEffect(() => {
+    if (gamePhase === 'decision' && countdown !== null && countdown > 0) {
+      if (lastCountdown.current !== countdown) {
+        lastCountdown.current = countdown;
+        playCountdown(countdown);
+      }
+    }
+  }, [countdown, gamePhase]);
+
+  // Sound effects for phase changes
+  useEffect(() => {
+    if (lastPhase.current !== gamePhase) {
+      const prevPhase = lastPhase.current;
+      lastPhase.current = gamePhase;
+
+      if (gamePhase === 'reveal' && prevPhase === 'decision') {
+        playRevealStart();
+        revealSoundPlayed.current = false;
+      }
+
+      if (gamePhase === 'decision' && prevPhase !== 'decision') {
+        playNewRound();
+        playTokens();
+      }
+    }
+  }, [gamePhase]);
+
+  // Sound for card reveals
+  useEffect(() => {
+    if (gamePhase === 'reveal' || gamePhase === 'summary') {
+      // Check if any player just had cards revealed
+      const anyRevealed = players.some(p => p.cardsRevealed > 0);
+      const ghostRevealed = ghostHands.some(g => g.cardsRevealed > 0);
+      if ((anyRevealed || ghostRevealed) && !revealSoundPlayed.current) {
+        playCardFlip();
+        revealSoundPlayed.current = true;
+      }
+    }
+  }, [gamePhase, players, ghostHands]);
+
+  // Sound for ghost appearing
+  useEffect(() => {
+    if (roundResult.includes('Ghost hand #')) {
+      playGhostAppear();
+    }
+  }, [roundResult]);
+
+  // Show achievement popups
+  useEffect(() => {
+    if (newAchievements.length > 0) {
+      // Show first achievement
+      setAchievementPopup(newAchievements[0]);
+      playWin(); // Play a celebratory sound
+
+      // Auto-dismiss after 4 seconds
+      const timer = setTimeout(() => {
+        setAchievementPopup(null);
+        clearNewAchievements();
+      }, 4000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [newAchievements, clearNewAchievements]);
+
+  // Check for dramatic 69 reveal during reveal/summary phase
+  useEffect(() => {
+    if (gamePhase === 'reveal' || gamePhase === 'summary') {
+      // Check all players with revealed cards for 69
+      for (const player of players) {
+        if (player.cardsRevealed === 2 && player.cards.length === 2) {
+          const ranks = [player.cards[0].rank, player.cards[1].rank];
+          if (ranks.includes('6') && ranks.includes('9')) {
+            setSixNineReveal({
+              name: player.name,
+              cards: player.cards.map(c => `${c.rank}${c.suit === 'hearts' ? '♥' : c.suit === 'diamonds' ? '♦' : c.suit === 'clubs' ? '♣' : '♠'}`)
+            });
+            setShowParticles('sixnine');
+            playSixNine();
+            const timer = setTimeout(() => {
+              setSixNineReveal(null);
+              setShowParticles(null);
+            }, 2500);
+            return () => clearTimeout(timer);
+          }
+        }
+      }
+      // Check ghost hands too
+      for (const ghost of ghostHands) {
+        if (ghost.cardsRevealed === 2 && ghost.cards.length === 2) {
+          const ranks = [ghost.cards[0].rank, ghost.cards[1].rank];
+          if (ranks.includes('6') && ranks.includes('9')) {
+            setSixNineReveal({
+              name: 'GHOST',
+              cards: ghost.cards.map(c => `${c.rank}${c.suit === 'hearts' ? '♥' : c.suit === 'diamonds' ? '♦' : c.suit === 'clubs' ? '♣' : '♠'}`)
+            });
+            setShowParticles('sixnine');
+            playSixNine();
+            const timer = setTimeout(() => {
+              setSixNineReveal(null);
+              setShowParticles(null);
+            }, 2500);
+            return () => clearTimeout(timer);
+          }
+        }
+      }
+    }
+  }, [gamePhase, players, ghostHands]);
 
   if (gamePhase === 'start') {
     return (
@@ -124,6 +321,8 @@ export function GameBoard() {
         resultMessage={roundResult}
         playerCount={playerCount}
         setPlayerCount={setPlayerCount}
+        difficulty={difficulty}
+        setDifficulty={setDifficulty}
       />
     );
   }
@@ -165,19 +364,160 @@ export function GameBoard() {
       {/* Particles */}
       <Particles active={showParticles !== null} type={showParticles || 'win'} />
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+      {/* Achievement Popup */}
+      {achievementPopup && (
         <div
           style={{
-            background: 'rgba(30, 41, 59, 0.9)',
-            borderRadius: '8px',
-            padding: '6px 14px',
-            border: '2px solid #334155',
-            backdropFilter: 'blur(8px)',
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.95), rgba(15, 118, 110, 0.95))',
+            borderRadius: '12px',
+            padding: '16px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            zIndex: 300,
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4)',
+            border: '1px solid rgba(45, 212, 191, 0.5)',
+            animation: 'achievement-slide-in 0.4s ease-out',
           }}
         >
-          <span style={{ color: '#94a3b8', fontSize: '12px' }}>ROUND </span>
-          <span style={{ color: '#14b8a6', fontWeight: 'bold', fontSize: '18px' }}>{roundNumber}</span>
+          <span style={{ fontSize: '32px' }}>{achievementPopup.icon}</span>
+          <div>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              Achievement Unlocked
+            </div>
+            <div style={{ color: 'white', fontSize: '16px', fontWeight: '700' }}>
+              {achievementPopup.name}
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
+              {achievementPopup.description}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DRAMATIC 69 REVEAL OVERLAY */}
+      {sixNineReveal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.85)',
+            zIndex: 200,
+            animation: 'sixnine-overlay-appear 0.3s ease-out',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '20px',
+              animation: 'sixnine-content-burst 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '120px',
+                fontWeight: 900,
+                background: 'linear-gradient(135deg, #f472b6, #e879f9, #c084fc, #a855f7, #f472b6)',
+                backgroundSize: '400% 400%',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                animation: 'rainbow-shift 1s ease infinite, sixnine-pulse 0.5s ease-in-out infinite',
+                textShadow: '0 0 80px rgba(232, 121, 249, 0.8)',
+                filter: 'drop-shadow(0 0 30px rgba(232, 121, 249, 0.8))',
+                letterSpacing: '-5px',
+              }}
+            >
+              6 9
+            </div>
+            <div
+              style={{
+                fontSize: '48px',
+                fontWeight: 900,
+                color: '#fbbf24',
+                textShadow: '0 0 30px rgba(251, 191, 36, 0.8)',
+                animation: 'sixnine-bounce 0.4s ease-out',
+              }}
+            >
+              {sixNineReveal.name} HAS IT!
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                gap: '20px',
+                fontSize: '60px',
+              }}
+            >
+              {sixNineReveal.cards.map((card, i) => (
+                <span
+                  key={i}
+                  style={{
+                    animation: `card-slam ${0.3 + i * 0.1}s ease-out`,
+                    textShadow: card.includes('♥') || card.includes('♦')
+                      ? '0 0 20px rgba(239, 68, 68, 0.8)'
+                      : '0 0 20px rgba(255, 255, 255, 0.5)',
+                    color: card.includes('♥') || card.includes('♦') ? '#ef4444' : 'white',
+                  }}
+                >
+                  {card}
+                </span>
+              ))}
+            </div>
+            <div
+              style={{
+                fontSize: '24px',
+                color: '#e879f9',
+                fontStyle: 'italic',
+                animation: 'fade-in 0.5s ease-out 0.3s both',
+              }}
+            >
+              UNBEATABLE HAND!
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 14px',
+              border: '2px solid #334155',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <span style={{ color: '#94a3b8', fontSize: '12px' }}>ROUND </span>
+            <span style={{ color: '#14b8a6', fontWeight: 'bold', fontSize: '18px' }}>{roundNumber}</span>
+          </div>
+
+          {/* Sound Toggle */}
+          <button
+            onClick={toggleSound}
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              border: `2px solid ${soundOn ? '#14b8a6' : '#334155'}`,
+              backdropFilter: 'blur(8px)',
+              cursor: 'pointer',
+              fontSize: '16px',
+              transition: 'all 0.2s',
+            }}
+            title={soundOn ? 'Sound On' : 'Sound Off'}
+          >
+            {soundOn ? '🔊' : '🔇'}
+          </button>
         </div>
 
         {/* Pot with dramatic styling */}
@@ -188,10 +528,23 @@ export function GameBoard() {
             padding: '6px 16px',
             border: '2px solid #fbbf24',
             boxShadow: '0 0 20px rgba(251,191,36,0.3)',
-            animation: pot > 20 ? 'pulse-gold 1s ease-in-out infinite' : 'none',
+            animation: pot > 20
+              ? 'pot-glow-intense 1.5s ease-in-out infinite'
+              : pot > 10
+                ? 'pulse-gold 1s ease-in-out infinite'
+                : 'none',
+            transition: 'all 0.3s ease',
           }}
         >
-          <span style={{ color: '#fbbf24', fontWeight: 'bold', fontSize: '18px' }}>
+          <span
+            style={{
+              color: '#fbbf24',
+              fontWeight: 'bold',
+              fontSize: pot > 30 ? '24px' : pot > 15 ? '20px' : '18px',
+              textShadow: pot > 20 ? '0 0 10px rgba(251,191,36,0.5)' : 'none',
+              transition: 'all 0.3s ease',
+            }}
+          >
             POT: {pot}
           </span>
         </div>
@@ -220,6 +573,8 @@ export function GameBoard() {
               isWinner={winners.includes(player.id)}
               isLoser={losers.includes(player.id)}
               showCards={showCards && player.decision === 'hold'}
+              isHearted={player.profileId ? isProfileHearted(player.profileId) : false}
+              onHeart={heartProfile}
             />
           ))}
         </div>
@@ -233,6 +588,8 @@ export function GameBoard() {
               isWinner={winners.includes(player.id)}
               isLoser={losers.includes(player.id)}
               showCards={showCards && player.decision === 'hold'}
+              isHearted={player.profileId ? isProfileHearted(player.profileId) : false}
+              onHeart={heartProfile}
             />
           ))}
         </div>
@@ -399,6 +756,8 @@ export function GameBoard() {
               isWinner={winners.includes(player.id)}
               isLoser={losers.includes(player.id)}
               showCards={showCards && player.decision === 'hold'}
+              isHearted={player.profileId ? isProfileHearted(player.profileId) : false}
+              onHeart={heartProfile}
             />
           ))}
         </div>
@@ -520,7 +879,10 @@ export function GameBoard() {
               {isDecisionPhase && !humanDecided && (
                 <div style={{ display: 'flex', gap: '30px' }}>
                   <button
-                    onClick={() => makeHumanDecision('hold')}
+                    onClick={() => {
+                      playHold();
+                      makeHumanDecision('hold');
+                    }}
                     style={{
                       padding: '24px 56px',
                       fontSize: '28px',
@@ -547,7 +909,10 @@ export function GameBoard() {
                     HOLD
                   </button>
                   <button
-                    onClick={() => makeHumanDecision('drop')}
+                    onClick={() => {
+                      playDrop();
+                      makeHumanDecision('drop');
+                    }}
                     style={{
                       padding: '24px 56px',
                       fontSize: '28px',
@@ -583,23 +948,73 @@ export function GameBoard() {
               )}
 
               {gamePhase === 'summary' && (
-                <button
-                  onClick={nextRound}
-                  style={{
-                    padding: '18px 48px',
-                    fontSize: '22px',
-                    fontWeight: 'bold',
-                    color: 'white',
-                    background: 'linear-gradient(135deg, #14b8a6, #0d9488, #0f766e)',
-                    border: '3px solid #2dd4bf',
-                    borderRadius: '16px',
-                    cursor: 'pointer',
-                    boxShadow: '0 0 30px rgba(20,184,166,0.5)',
-                    animation: 'pulse 1s ease-in-out infinite',
-                  }}
-                >
-                  NEXT ROUND
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                  <button
+                    onClick={() => {
+                      playClick();
+                      nextRound();
+                    }}
+                    style={{
+                      padding: '18px 48px',
+                      fontSize: '22px',
+                      fontWeight: 'bold',
+                      color: 'white',
+                      background: 'linear-gradient(135deg, #14b8a6, #0d9488, #0f766e)',
+                      border: '3px solid #2dd4bf',
+                      borderRadius: '16px',
+                      cursor: 'pointer',
+                      boxShadow: '0 0 30px rgba(20,184,166,0.5)',
+                      animation: 'pulse 1s ease-in-out infinite',
+                    }}
+                  >
+                    NEXT ROUND
+                  </button>
+
+                  {/* Share buttons */}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={handleShare}
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: shareStatus !== 'idle' ? '#0f172a' : '#cbd5e1',
+                        background: shareStatus !== 'idle'
+                          ? 'linear-gradient(135deg, #4ade80, #22c55e)'
+                          : 'rgba(30, 41, 59, 0.9)',
+                        border: '2px solid #334155',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      {shareStatus === 'idle' ? '📤' : '✅'}
+                      {shareStatus === 'idle' ? 'Share' : shareStatus === 'shared' ? 'Shared!' : 'Copied!'}
+                    </button>
+                    <button
+                      onClick={handleDownload}
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#cbd5e1',
+                        background: 'rgba(30, 41, 59, 0.9)',
+                        border: '2px solid #334155',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      📷 Save Card
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -674,6 +1089,68 @@ export function GameBoard() {
         @keyframes ghost-float {
           0%, 100% { transform: translateX(-50%) translateY(0); }
           50% { transform: translateX(-50%) translateY(-5px); }
+        }
+        @keyframes sixnine-overlay-appear {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        @keyframes sixnine-content-burst {
+          0% { transform: scale(0.3); opacity: 0; }
+          50% { transform: scale(1.15); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes rainbow-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes sixnine-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.08); }
+        }
+        @keyframes sixnine-bounce {
+          0% { transform: translateY(30px); opacity: 0; }
+          60% { transform: translateY(-10px); }
+          100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes card-slam {
+          0% { transform: translateY(-100px) scale(0.5); opacity: 0; }
+          60% { transform: translateY(10px) scale(1.1); }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes fade-in {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        @keyframes achievement-slide-in {
+          0% { transform: translateX(-50%) translateY(-100px); opacity: 0; }
+          100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+        @keyframes token-to-pot {
+          0% { transform: translateY(0) scale(1); opacity: 1; }
+          50% { transform: translateY(-80px) scale(1.2); opacity: 0.8; }
+          100% { transform: translateY(-160px) scale(0.6); opacity: 0; }
+        }
+        @keyframes token-from-pot {
+          0% { transform: translateY(-160px) scale(0.6); opacity: 0; }
+          50% { transform: translateY(-80px) scale(1.2); opacity: 0.8; }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes token-burst {
+          0% { transform: scale(1); box-shadow: 0 0 0 rgba(251, 191, 36, 0); }
+          50% { transform: scale(1.3); box-shadow: 0 0 30px rgba(251, 191, 36, 0.8); }
+          100% { transform: scale(1); box-shadow: 0 0 0 rgba(251, 191, 36, 0); }
+        }
+        @keyframes pot-glow-intense {
+          0%, 100% { box-shadow: 0 0 20px rgba(251,191,36,0.3), 0 0 40px rgba(251,191,36,0.2); }
+          50% { box-shadow: 0 0 40px rgba(251,191,36,0.6), 0 0 80px rgba(251,191,36,0.4); }
+        }
+        @media (max-width: 768px) {
+          .hold-drop-btn {
+            padding: 20px 40px !important;
+            font-size: 24px !important;
+            min-width: 140px !important;
+          }
         }
       `}</style>
     </div>

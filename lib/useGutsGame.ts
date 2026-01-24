@@ -12,6 +12,9 @@ import type {
   Decision,
 } from './types';
 import { RANK_VALUES } from './types';
+import { AI_PROFILES, selectGameProfiles, getTrashTalk, loadProfileStats, saveProfileStats, loadHeartedProfiles, saveHeartedProfiles, incrementGamesPlayed as incrementProfileGamesPlayed, type AIProfile } from './profiles';
+import { loadDifficulty, saveDifficulty, getDifficultyConfig, type Difficulty } from './difficulty';
+import { updateStatsAfterRound, incrementGamesPlayed as incrementPlayerGames, type Achievement } from './stats';
 
 const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
 const RANKS: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
@@ -109,8 +112,14 @@ export function getHandDescription(cards: Card[]): string {
   return `High Card: ${rankName(highCard.rank)}, ${rankName(lowCard.rank)}`;
 }
 
-function calculateAIDecision(player: Player): Decision {
+function calculateAIDecision(player: Player, difficulty: Difficulty): Decision {
+  const config = getDifficultyConfig(difficulty);
   const handValue = getHandValue(player.cards);
+
+  // Add some randomness based on difficulty (less accurate = more random mistakes)
+  const accuracyRoll = Math.random();
+  const makeMistake = accuracyRoll > config.aiAccuracy;
+
   let holdProbability = 0.4;
 
   if (handValue > 1000) {
@@ -121,7 +130,14 @@ function calculateAIDecision(player: Player): Decision {
     holdProbability = 0.6;
   } else {
     holdProbability = 0.25;
+    // Bluff chance on bad hands
+    if (Math.random() < config.aiBluffChance) {
+      holdProbability = 0.6;
+    }
   }
+
+  // Apply cautiousness modifier
+  holdProbability += config.aiCautiousness;
 
   switch (player.personality) {
     case 'aggressive':
@@ -138,16 +154,19 @@ function calculateAIDecision(player: Player): Decision {
       break;
   }
 
+  // On easy mode, AI makes more mistakes
+  if (makeMistake) {
+    holdProbability = 1 - holdProbability; // Invert decision
+  }
+
   return Math.random() < holdProbability ? 'hold' : 'drop';
 }
 
 // TODO: Future enhancement - fetch trending names from Google Trends API
 // Use top names from sports, entertainment, politics etc. for AI opponents
 // Example: GET /api/trending-names -> ["LeBron", "Taylor", "Elon", ...]
-const AI_NAMES = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India'];
-const PERSONALITIES: Personality[] = ['aggressive', 'conservative', 'random', 'tricky'];
 
-function createInitialPlayers(playerCount: number = 5): Player[] {
+function createInitialPlayers(playerCount: number = 5, currentProfileIds: string[] = []): Player[] {
   const players: Player[] = [];
 
   // Human player first
@@ -163,18 +182,25 @@ function createInitialPlayers(playerCount: number = 5): Player[] {
     cardsRevealed: 0,
   });
 
-  // AI players
-  for (let i = 1; i < playerCount; i++) {
+  // AI players using profiles - pass current IDs for cycling logic
+  const aiProfiles = selectGameProfiles(playerCount - 1, currentProfileIds);
+
+  for (let i = 0; i < playerCount - 1; i++) {
+    const profile = aiProfiles[i];
     players.push({
-      id: `player-${i}`,
-      name: AI_NAMES[i - 1] || `Player ${i + 1}`,
+      id: `player-${i + 1}`,
+      name: profile?.name || `Player ${i + 2}`,
       tokens: 100,
       cards: [],
       isHuman: false,
       decision: null,
-      personality: PERSONALITIES[(i - 1) % PERSONALITIES.length],
+      personality: profile?.personality || 'random',
       isActive: true,
       cardsRevealed: 0,
+      profileId: profile?.id,
+      avatar: profile?.avatar,
+      catchphrase: profile?.catchphrase,
+      currentThought: profile ? getTrashTalk(profile, 'idle') : undefined,
     });
   }
 
@@ -201,9 +227,23 @@ const initialState: GameState = {
 export function useGutsGame() {
   const [state, setState] = useState<GameState>(initialState);
   const [playerCount, setPlayerCount] = useState(5);
+  const [difficulty, setDifficultyState] = useState<Difficulty>('normal');
+  const [newAchievements, setNewAchievements] = useState<Achievement[]>([]);
   const deckRef = useRef<Card[]>([]);
   const countdownProcessedRef = useRef(false);
   const revealInProgressRef = useRef(false);
+  const statsTrackedRef = useRef(false);
+
+  // Load difficulty from storage on mount
+  useEffect(() => {
+    setDifficultyState(loadDifficulty());
+  }, []);
+
+  // Save difficulty when changed
+  const setDifficulty = useCallback((d: Difficulty) => {
+    setDifficultyState(d);
+    saveDifficulty(d);
+  }, []);
 
   const activePlayers = state.players.filter(p => p.isActive);
   const humanPlayer = state.players.find(p => p.isHuman);
@@ -244,6 +284,7 @@ export function useGutsGame() {
   const startRound = useCallback(() => {
     countdownProcessedRef.current = false;
     revealInProgressRef.current = false;
+    statsTrackedRef.current = false;
     collectAntes();
     dealCards();
     setState(prev => ({
@@ -262,13 +303,19 @@ export function useGutsGame() {
     if (numPlayers) {
       setPlayerCount(numPlayers);
     }
+
+    // Get current AI profile IDs for cycling logic
+    const currentProfileIds = state.players
+      .filter(p => !p.isHuman && p.profileId)
+      .map(p => p.profileId!);
+
     setState({
       ...initialState,
-      players: createInitialPlayers(count),
+      players: createInitialPlayers(count, currentProfileIds),
       gamePhase: 'start',
     });
     setTimeout(() => startRound(), 100);
-  }, [startRound, playerCount]);
+  }, [startRound, playerCount, state.players]);
 
   const makeHumanDecision = useCallback(
     (decision: Decision) => {
@@ -291,10 +338,10 @@ export function useGutsGame() {
         if (player.isHuman || !player.isActive || player.decision) {
           return player;
         }
-        return { ...player, decision: calculateAIDecision(player) };
+        return { ...player, decision: calculateAIDecision(player, difficulty) };
       }),
     }));
-  }, []);
+  }, [difficulty]);
 
   const addGhostHand = useCallback(() => {
     const newGhost: GhostHand = {
@@ -346,20 +393,27 @@ export function useGutsGame() {
       // Only players can be "losers" (ghosts don't pay)
       const loserIds = losingHands.filter(h => !h.isGhost).map(h => h.id);
 
-      // Check if any ghost is among the winners
-      const ghostWon = winningHands.some(h => h.isGhost);
+      // Check if any ghost is among the winners (tied or outright)
+      const ghostInWinners = winningHands.some(h => h.isGhost);
       // Check if any player is among the winners
-      const playerWon = winningHands.some(h => !h.isGhost);
+      const playerInWinners = winningHands.some(h => !h.isGhost);
 
-      // A player must beat ALL ghosts to win outright
-      // If ANY ghost ties or beats all players, ghosts stay
-      const playerBeatsAllGhosts = playerWon && !ghostWon;
+      // GHOST ALWAYS WINS TIES - if ghost has same hand, ghost wins
+      // Player only wins if they STRICTLY beat all ghosts (no ties)
+      const ghostWon = ghostInWinners; // Ghost wins if tied OR ahead
+      const playerBeatsAllGhosts = playerInWinners && !ghostInWinners;
+
+      // In a tie, players who tied with ghost are now LOSERS
+      const tiedWithGhost = ghostInWinners && playerInWinners;
+      const actualLoserIds = tiedWithGhost
+        ? [...loserIds, ...winningHands.filter(h => !h.isGhost).map(h => h.id)]
+        : loserIds;
 
       let newPot = 0;
       const newPlayers = prev.players.map(p => {
-        if (loserIds.includes(p.id)) {
+        if (actualLoserIds.includes(p.id)) {
           // All losers who held must match the pot
-          // If ghost won, they DOUBLE the pot
+          // If ghost won (including ties), they DOUBLE the pot
           const multiplier = ghostWon ? 2 : 1;
           const tokensToLose = Math.min(p.tokens, prev.pot * multiplier);
           newPot += tokensToLose;
@@ -375,24 +429,17 @@ export function useGutsGame() {
       });
 
       // GHOST PERSISTENCE RULE:
-      // Ghost hands ONLY clear when a player wins AND beats ALL ghost hands
+      // Ghost hands ONLY clear when a player STRICTLY beats ALL ghost hands
       // If any ghost wins or ties with the best hand, ALL ghosts stay
       const newGhostHands = playerBeatsAllGhosts ? [] : prev.ghostHands;
 
       // Build result message
       let resultMessage = '';
-      if (ghostWon && !playerWon) {
-        // Ghost has the best hand, all players lost
+      if (ghostWon && !playerBeatsAllGhosts) {
+        // Ghost won (either outright or by tie-breaker)
         const winningGhost = prev.ghostHands.find(g => winnerIds.includes(g.id));
-        resultMessage = `Ghost wins with ${getHandDescription(winningGhost?.cards || [])}! Losers DOUBLE the pot!`;
-        newPot = prev.pot + newPot;
-      } else if (ghostWon && playerWon) {
-        // Tie between ghost and player - pot stays, ghosts stay
-        const tiedPlayerNames = winningHands
-          .filter(h => !h.isGhost)
-          .map(h => h.name)
-          .join(' & ');
-        resultMessage = `${tiedPlayerNames} tied with Ghost! Pot grows to ${prev.pot + newPot} tokens.`;
+        const tieNote = tiedWithGhost ? ' (Ghost wins ties!)' : '';
+        resultMessage = `Ghost wins with ${getHandDescription(winningGhost?.cards || [])}!${tieNote} Losers DOUBLE the pot!`;
         newPot = prev.pot + newPot;
       } else if (playerBeatsAllGhosts) {
         // Player beat everyone including all ghosts
@@ -414,10 +461,10 @@ export function useGutsGame() {
       return {
         ...prev,
         players: newPlayers,
-        pot: ghostWon || (playerWon && ghostWon) ? newPot : newPot,
+        pot: ghostWon ? newPot : newPot,
         ghostHands: newGhostHands,
-        winners: winnerIds,
-        losers: loserIds,
+        winners: playerBeatsAllGhosts ? winnerIds.filter(id => !id.startsWith('ghost')) : [],
+        losers: actualLoserIds,
         roundResult: resultMessage,
         gamePhase: 'summary',
       };
@@ -605,6 +652,144 @@ export function useGutsGame() {
     startRound();
   }, [state.players, startRound]);
 
+  // Heart a player profile
+  const heartProfile = useCallback((profileId: string) => {
+    const hearts = loadHeartedProfiles();
+    const stats = loadProfileStats();
+
+    // Toggle heart
+    if (hearts.has(profileId)) {
+      hearts.delete(profileId);
+    } else {
+      hearts.add(profileId);
+      // Increment hearts received
+      const current = stats.get(profileId) || { gamesPlayed: 0, heartsReceived: 0 };
+      stats.set(profileId, { ...current, heartsReceived: current.heartsReceived + 1 });
+      saveProfileStats(stats);
+    }
+
+    saveHeartedProfiles(hearts);
+    // Force re-render by updating state
+    setState(prev => ({ ...prev }));
+  }, []);
+
+  // Check if a profile is hearted
+  const isProfileHearted = useCallback((profileId: string): boolean => {
+    return loadHeartedProfiles().has(profileId);
+  }, []);
+
+  // Update player thought based on game events
+  const updatePlayerThoughts = useCallback((situation: 'onGoodHand' | 'onBadHand' | 'onWin' | 'onLose' | 'onHold' | 'onDrop' | 'idle') => {
+    setState(prev => ({
+      ...prev,
+      players: prev.players.map(player => {
+        if (player.isHuman || !player.profileId) return player;
+        const profile = AI_PROFILES.find(p => p.id === player.profileId);
+        if (!profile) return player;
+        return { ...player, currentThought: getTrashTalk(profile, situation) };
+      }),
+    }));
+  }, []);
+
+  // Update thoughts when cards are dealt
+  useEffect(() => {
+    if (state.gamePhase === 'decision' && state.countdown === 3) {
+      // Update thoughts based on hand quality
+      setState(prev => ({
+        ...prev,
+        players: prev.players.map(player => {
+          if (player.isHuman || !player.profileId || player.cards.length !== 2) return player;
+          const profile = AI_PROFILES.find(p => p.id === player.profileId);
+          if (!profile) return player;
+          const handValue = getHandValue(player.cards);
+          const situation = handValue > 500 ? 'onGoodHand' : 'onBadHand';
+          return { ...player, currentThought: getTrashTalk(profile, situation) };
+        }),
+      }));
+    }
+  }, [state.gamePhase, state.countdown]);
+
+  // Update thoughts when decisions are made
+  useEffect(() => {
+    if (state.gamePhase === 'reveal') {
+      setState(prev => ({
+        ...prev,
+        players: prev.players.map(player => {
+          if (player.isHuman || !player.profileId) return player;
+          const profile = AI_PROFILES.find(p => p.id === player.profileId);
+          if (!profile) return player;
+          const situation = player.decision === 'hold' ? 'onHold' : 'onDrop';
+          return { ...player, currentThought: getTrashTalk(profile, situation) };
+        }),
+      }));
+    }
+  }, [state.gamePhase]);
+
+  // Update thoughts on win/lose, increment games played, and track player stats
+  useEffect(() => {
+    if (state.gamePhase === 'summary' && (state.winners.length > 0 || state.losers.length > 0)) {
+      // Only track once per summary phase
+      if (statsTrackedRef.current) return;
+      statsTrackedRef.current = true;
+
+      // Increment games played for all active AI profiles
+      const activeProfileIds = state.players
+        .filter(p => !p.isHuman && p.isActive && p.profileId)
+        .map(p => p.profileId!);
+      if (activeProfileIds.length > 0) {
+        incrementProfileGamesPlayed(activeProfileIds);
+      }
+
+      // Track player stats
+      const human = state.players.find(p => p.isHuman);
+      if (human) {
+        const won = state.winners.includes(human.id);
+        const lost = state.losers.includes(human.id);
+        const handValue = getHandValue(human.cards);
+        const handDesc = getHandDescription(human.cards);
+        const isSixNine = handDesc.includes('SIX-NINE');
+        const defeatedGhost = won && state.roundResult.includes('ghost');
+        const lostToGhost = lost && state.roundResult.includes('Ghost wins');
+
+        // Calculate tokens change (approximate based on pot)
+        const tokensChange = won ? state.pot : lost ? -state.pot : 0;
+
+        const unlocked = updateStatsAfterRound(
+          won,
+          tokensChange,
+          state.pot,
+          handDesc,
+          handValue,
+          isSixNine,
+          defeatedGhost,
+          lostToGhost
+        );
+
+        if (unlocked.length > 0) {
+          setNewAchievements(unlocked);
+        }
+      }
+
+      setState(prev => ({
+        ...prev,
+        players: prev.players.map(player => {
+          if (player.isHuman || !player.profileId) return player;
+          const profile = AI_PROFILES.find(p => p.id === player.profileId);
+          if (!profile) return player;
+          let situation: 'onWin' | 'onLose' | 'idle' = 'idle';
+          if (prev.winners.includes(player.id)) situation = 'onWin';
+          else if (prev.losers.includes(player.id)) situation = 'onLose';
+          return { ...player, currentThought: getTrashTalk(profile, situation) };
+        }),
+      }));
+    }
+  }, [state.gamePhase, state.winners, state.losers, state.players, state.pot, state.roundResult]);
+
+  // Clear new achievements after they're shown
+  const clearNewAchievements = useCallback(() => {
+    setNewAchievements([]);
+  }, []);
+
   return {
     state,
     humanPlayer,
@@ -614,5 +799,11 @@ export function useGutsGame() {
     nextRound,
     playerCount,
     setPlayerCount,
+    heartProfile,
+    isProfileHearted,
+    difficulty,
+    setDifficulty,
+    newAchievements,
+    clearNewAchievements,
   };
 }

@@ -19,6 +19,11 @@ export interface Player {
   personality?: Personality;
   isActive: boolean;
   cardsRevealed: number;
+  // Profile fields for AI players
+  profileId?: string;
+  avatar?: string;
+  catchphrase?: string;
+  currentThought?: string; // Current speech bubble text
 }
 
 export interface GhostHand {
