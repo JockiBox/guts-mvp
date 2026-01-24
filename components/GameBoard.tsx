@@ -30,6 +30,7 @@ import {
 } from '@/lib/sounds';
 import { type Achievement } from '@/lib/stats';
 import { shareResult, downloadResultCard, type ShareData } from '@/lib/share';
+import { getGuestTokens, setGuestTokens, addGuestTokens, deductGuestTokens } from '@/lib/guestTokens';
 
 // Particle component for celebrations
 function Particles({ active, type }: { active: boolean; type: 'win' | 'sixnine' | 'lose' }) {
@@ -168,24 +169,38 @@ export function GameBoard() {
   const revealSoundPlayed = useRef(false);
   const gameResultRecorded = useRef(false);
 
-  // Sync user tokens with game state
+  // Sync user/guest tokens with game state
   useEffect(() => {
-    if (user && setHumanTokens) {
-      setHumanTokens(user.tokens);
+    if (setHumanTokens) {
+      if (user) {
+        setHumanTokens(user.tokens);
+      } else {
+        setHumanTokens(getGuestTokens());
+      }
     }
   }, [user, setHumanTokens]);
 
-  // Record game results to database
+  // Record game results to database (for logged in users) or localStorage (for guests)
   useEffect(() => {
-    if (gamePhase === 'summary' && humanPlayer && user && !gameResultRecorded.current) {
+    if (gamePhase === 'summary' && humanPlayer && !gameResultRecorded.current) {
       gameResultRecorded.current = true;
       const won = winners.includes(humanPlayer.id);
       const tokensChange = won ? pot : losers.includes(humanPlayer.id) ? -pot : 0;
 
       if (tokensChange !== 0) {
-        recordGameResult(user.id, won, tokensChange).then(() => {
-          fetchProfile(); // Refresh user data
-        });
+        if (user) {
+          // Logged in user - record to database
+          recordGameResult(user.id, won, tokensChange).then(() => {
+            fetchProfile(); // Refresh user data
+          });
+        } else {
+          // Guest - update localStorage tokens
+          if (won) {
+            addGuestTokens(pot);
+          } else if (losers.includes(humanPlayer.id)) {
+            deductGuestTokens(pot);
+          }
+        }
       }
     }
 
@@ -403,8 +418,8 @@ export function GameBoard() {
     }
   }, [gamePhase, players, ghostHands]);
 
-  // Get display tokens (from user if logged in, otherwise from game state)
-  const displayTokens = user?.tokens ?? humanPlayer?.tokens ?? 100;
+  // Get display tokens (from user if logged in, otherwise guest tokens)
+  const displayTokens = user?.tokens ?? getGuestTokens();
 
   if (gamePhase === 'start') {
     return (

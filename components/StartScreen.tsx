@@ -8,6 +8,7 @@ import { DIFFICULTY_CONFIGS, type Difficulty } from '@/lib/difficulty';
 import { isTrendingEnabled, setTrendingEnabled } from '@/lib/trendingNames';
 import { playClick, playTokens } from '@/lib/sounds';
 import { useUser } from '@/lib/useUser';
+import { getGuestTokens, canGuestPlay } from '@/lib/guestTokens';
 import { AuthModal } from './AuthModal';
 import { ShopModal } from './ShopModal';
 import { ProfileModal } from './ProfileModal';
@@ -50,6 +51,14 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
   const [roomPlayers, setRoomPlayers] = useState<RoomPlayer[]>([]);
   const [showMultiplayerGame, setShowMultiplayerGame] = useState(false);
   const { shouldShowTutorial } = useTutorial();
+  const [guestTokens, setGuestTokens] = useState(25);
+
+  // Update guest tokens on mount
+  useEffect(() => {
+    if (!user) {
+      setGuestTokens(getGuestTokens());
+    }
+  }, [user]);
 
   // Feature flags
   const multiplayerEnabled = isEnabled('multiplayerEnabled');
@@ -96,10 +105,18 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
 
   const handleStartGame = () => {
     playClick();
-    // Check if user has enough tokens
-    if (user && user.tokens < 1) {
-      setShowOutOfTokens(true);
-      return;
+    // Check if user/guest has enough tokens
+    if (user) {
+      if (user.tokens < 1) {
+        setShowOutOfTokens(true);
+        return;
+      }
+    } else {
+      // Guest - check guest tokens
+      if (!canGuestPlay(1)) {
+        setShowOutOfTokens(true);
+        return;
+      }
     }
     onStart(playerCount);
   };
@@ -256,24 +273,42 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
               </div>
             </button>
           ) : (
-            <button
-              onClick={() => {
-                playClick();
-                setShowAuthModal(true);
-              }}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '10px',
-                border: '2px solid #14b8a6',
-                background: 'transparent',
-                color: '#14b8a6',
-                fontWeight: '600',
-                fontSize: '13px',
-                cursor: 'pointer',
-              }}
-            >
-              Sign In
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {/* Guest token display */}
+              <div
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid #334155',
+                  background: '#0f172a',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span style={{ color: '#fbbf24', fontSize: '12px' }}>🪙 {guestTokens}</span>
+                <span style={{ color: '#64748b', fontSize: '10px' }}>/day</span>
+              </div>
+              {/* Sign up for more */}
+              <button
+                onClick={() => {
+                  playClick();
+                  setShowAuthModal(true);
+                }}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid #334155',
+                  background: 'transparent',
+                  color: '#64748b',
+                  fontWeight: '500',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                }}
+              >
+                Sign up for 100/day
+              </button>
+            </div>
           )}
         </div>
 
@@ -817,7 +852,9 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
               Out of Tokens!
             </h2>
             <p style={{ color: '#94a3b8', marginBottom: '20px', fontSize: '14px' }}>
-              You need at least 1 token to play. Get more tokens from the shop!
+              {user
+                ? 'You need at least 1 token to play. Get more tokens from the shop!'
+                : 'Come back tomorrow for 25 free tokens, or sign up for 100 tokens per day!'}
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
@@ -835,24 +872,45 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
               >
                 Cancel
               </button>
-              <button
-                onClick={() => {
-                  setShowOutOfTokens(false);
-                  setShowShopModal(true);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  background: 'linear-gradient(135deg, #fbbf24, #d97706)',
-                  color: '#0f172a',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                🛒 Go to Shop
-              </button>
+              {user ? (
+                <button
+                  onClick={() => {
+                    setShowOutOfTokens(false);
+                    setShowShopModal(true);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #fbbf24, #d97706)',
+                    color: '#0f172a',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                >
+                  🛒 Go to Shop
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setShowOutOfTokens(false);
+                    setShowAuthModal(true);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+                    color: 'white',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Sign Up Free
+                </button>
+              )}
             </div>
           </div>
         </div>
