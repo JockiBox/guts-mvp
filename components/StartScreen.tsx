@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { getTop10Profiles, loadHeartedProfiles, type AIProfile } from '@/lib/profiles';
 import { loadPlayerStats, getAllAchievements, getWinRate, formatStatValue, type PlayerStats, type Achievement } from '@/lib/stats';
 import { DIFFICULTY_CONFIGS, type Difficulty } from '@/lib/difficulty';
@@ -32,6 +33,8 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
   const [showShopModal, setShowShopModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [dailyRewardClaimed, setDailyRewardClaimed] = useState<{ tokens: number; streak: number } | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [showOutOfTokens, setShowOutOfTokens] = useState(false);
 
   useEffect(() => {
     setTopProfiles(getTop10Profiles());
@@ -39,6 +42,9 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
     setStats(loadPlayerStats());
     setAchievements(getAllAchievements());
     setTrendingNames(isTrendingEnabled());
+    // Simulate minimum loading time for smooth UX
+    const timer = setTimeout(() => setInitialLoading(false), 800);
+    return () => clearTimeout(timer);
   }, []);
 
   const toggleTrendingNames = () => {
@@ -57,7 +63,69 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
     }
   };
 
+  const handleStartGame = () => {
+    playClick();
+    // Check if user has enough tokens
+    if (user && user.tokens < 1) {
+      setShowOutOfTokens(true);
+      return;
+    }
+    onStart(playerCount);
+  };
+
   const unlockedCount = achievements.filter(a => a.unlockedAt).length;
+
+  // Initial loading spinner
+  if (initialLoading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+        }}
+      >
+        <div
+          style={{
+            fontSize: '64px',
+            marginBottom: '20px',
+            animation: 'spin-cards 1s ease-in-out infinite',
+          }}
+        >
+          🃏
+        </div>
+        <h1
+          style={{
+            fontSize: '36px',
+            fontWeight: 900,
+            background: 'linear-gradient(135deg, #2dd4bf, #22d3ee)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            marginBottom: '8px',
+          }}
+        >
+          GUTS
+        </h1>
+        <div
+          style={{
+            color: '#64748b',
+            fontSize: '14px',
+          }}
+        >
+          Loading...
+        </div>
+        <style jsx>{`
+          @keyframes spin-cards {
+            0%, 100% { transform: rotateY(0deg) scale(1); }
+            50% { transform: rotateY(180deg) scale(1.1); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -444,10 +512,7 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
 
             {/* Start Button */}
             <button
-              onClick={() => {
-                playClick();
-                onStart(playerCount);
-              }}
+              onClick={handleStartGame}
               style={{
                 padding: '16px 32px',
                 fontSize: '18px',
@@ -604,6 +669,137 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
             </div>
           </details>
         )}
+      </div>
+
+      {/* Out of Tokens Modal */}
+      {showOutOfTokens && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 200,
+            padding: '20px',
+          }}
+          onClick={() => setShowOutOfTokens(false)}
+        >
+          <div
+            style={{
+              background: '#1e293b',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '100%',
+              textAlign: 'center',
+              border: '1px solid #334155',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>😅</div>
+            <h2 style={{ color: '#fbbf24', fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>
+              Out of Tokens!
+            </h2>
+            <p style={{ color: '#94a3b8', marginBottom: '20px', fontSize: '14px' }}>
+              You need at least 1 token to play. Get more tokens from the shop!
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowOutOfTokens(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '1px solid #334155',
+                  background: 'transparent',
+                  color: '#94a3b8',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowOutOfTokens(false);
+                  setShowShopModal(true);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #fbbf24, #d97706)',
+                  color: '#0f172a',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                🛒 Go to Shop
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer Links */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '12px 16px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '16px',
+          background: 'rgba(15, 23, 42, 0.9)',
+          borderTop: '1px solid #334155',
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        <Link
+          href="/leaderboard"
+          style={{
+            color: '#fbbf24',
+            textDecoration: 'none',
+            fontSize: '12px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+          }}
+        >
+          🏆 Leaderboard
+        </Link>
+        <span style={{ color: '#334155' }}>|</span>
+        <Link
+          href="/terms"
+          style={{
+            color: '#64748b',
+            textDecoration: 'none',
+            fontSize: '12px',
+          }}
+        >
+          Terms
+        </Link>
+        <Link
+          href="/privacy"
+          style={{
+            color: '#64748b',
+            textDecoration: 'none',
+            fontSize: '12px',
+          }}
+        >
+          Privacy
+        </Link>
+        <span style={{ color: '#334155' }}>|</span>
+        <span style={{ color: '#475569', fontSize: '11px' }}>
+          © 2025 GUTS
+        </span>
       </div>
 
       {/* Modals */}
