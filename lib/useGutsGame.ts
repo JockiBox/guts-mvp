@@ -158,17 +158,6 @@ function createInitialPlayers(): Player[] {
   }));
 }
 
-// Reveal phases: 'waiting' -> 'reveal-players' -> 'reveal-ghost-delay' -> 'reveal-ghosts' -> done
-type RevealPhase = 'waiting' | 'reveal-players' | 'reveal-ghost-delay' | 'reveal-ghosts';
-
-interface ExtendedRevealState {
-  currentPlayerIndex: number;
-  currentCardIndex: number;
-  isRevealing: boolean;
-  revealPhase: RevealPhase;
-  ghostCardIndex: number; // which ghost card we're on (0 = first card of first ghost, etc.)
-}
-
 const initialState: GameState = {
   players: createInitialPlayers(),
   pot: 0,
@@ -188,13 +177,9 @@ const initialState: GameState = {
 
 export function useGutsGame() {
   const [state, setState] = useState<GameState>(initialState);
-  const [revealPhase, setRevealPhase] = useState<RevealPhase>('waiting');
-  const [ghostCardIndex, setGhostCardIndex] = useState(0);
   const deckRef = useRef<Card[]>([]);
-  const revealTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const countdownProcessedRef = useRef(false);
-  const revealCompleteProcessedRef = useRef(false);
-  const phaseProcessedRef = useRef(false);
+  const revealInProgressRef = useRef(false);
 
   const activePlayers = state.players.filter(p => p.isActive);
   const humanPlayer = state.players.find(p => p.isHuman);
@@ -234,10 +219,7 @@ export function useGutsGame() {
 
   const startRound = useCallback(() => {
     countdownProcessedRef.current = false;
-    revealCompleteProcessedRef.current = false;
-    phaseProcessedRef.current = false;
-    setRevealPhase('waiting');
-    setGhostCardIndex(0);
+    revealInProgressRef.current = false;
     collectAntes();
     dealCards();
     setState(prev => ({
@@ -395,46 +377,79 @@ export function useGutsGame() {
     });
   }, []);
 
-  // Reveal all player cards at once
-  const revealAllPlayerCards = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      players: prev.players.map(p =>
-        p.isActive && p.decision === 'hold' ? { ...p, cardsRevealed: 2 } : p
-      ),
-    }));
-  }, []);
+  // Run the entire reveal sequence with timeouts
+  const runRevealSequence = useCallback(() => {
+    if (revealInProgressRef.current) return;
+    revealInProgressRef.current = true;
 
-  // Reveal next ghost card (one at a time)
-  const revealNextGhostCard = useCallback(() => {
-    setState(prev => {
-      const totalGhostCards = prev.ghostHands.length * 2;
-
-      if (ghostCardIndex >= totalGhostCards) {
-        return prev;
-      }
-
-      const ghostIndex = Math.floor(ghostCardIndex / 2);
-      const cardIndex = (ghostCardIndex % 2) + 1;
-
-      const newGhostHands = prev.ghostHands.map((ghost, idx) => {
-        if (idx === ghostIndex) {
-          return { ...ghost, cardsRevealed: cardIndex };
-        }
-        if (idx < ghostIndex) {
-          return { ...ghost, cardsRevealed: 2 };
-        }
-        return ghost;
-      });
-
-      return {
+    // Step 1: Wait 2 seconds, then reveal all player cards
+    setTimeout(() => {
+      setState(prev => ({
         ...prev,
-        ghostHands: newGhostHands,
-      };
-    });
+        players: prev.players.map(p =>
+          p.isActive && p.decision === 'hold' ? { ...p, cardsRevealed: 2 } : p
+        ),
+      }));
 
-    setGhostCardIndex(prev => prev + 1);
-  }, [ghostCardIndex]);
+      // Step 2: Wait 2 seconds, then start revealing ghost cards
+      setTimeout(() => {
+        setState(prev => {
+          const ghostCount = prev.ghostHands.length;
+
+          if (ghostCount === 0) {
+            // No ghosts - resolve immediately
+            return prev;
+          }
+          return prev;
+        });
+
+        // Get current ghost count from a ref-safe way
+        setState(prev => {
+          const ghostCount = prev.ghostHands.length;
+
+          if (ghostCount === 0) {
+            // No ghosts - resolve round
+            setTimeout(() => resolveRound(), 500);
+            return prev;
+          }
+
+          // Reveal ghost cards one by one
+          let cardIndex = 0;
+          const totalCards = ghostCount * 2;
+
+          const revealNextCard = () => {
+            if (cardIndex >= totalCards) {
+              // All revealed - resolve round
+              setTimeout(() => resolveRound(), 1000);
+              return;
+            }
+
+            const ghostIdx = Math.floor(cardIndex / 2);
+            const cardNum = (cardIndex % 2) + 1;
+
+            setState(innerPrev => ({
+              ...innerPrev,
+              ghostHands: innerPrev.ghostHands.map((ghost, idx) => {
+                if (idx === ghostIdx) {
+                  return { ...ghost, cardsRevealed: cardNum };
+                }
+                if (idx < ghostIdx) {
+                  return { ...ghost, cardsRevealed: 2 };
+                }
+                return ghost;
+              }),
+            }));
+
+            cardIndex++;
+            setTimeout(revealNextCard, 800);
+          };
+
+          revealNextCard();
+          return prev;
+        });
+      }, 2000);
+    }, 2000);
+  }, [resolveRound]);
 
   const startRevealPhase = useCallback(() => {
     // Use setState to read current state to avoid stale closure issues
@@ -491,18 +506,10 @@ export function useGutsGame() {
         };
       }
 
-      // Normal reveal: some held, some dropped
-      setRevealPhase('waiting');
-      setGhostCardIndex(0);
-      phaseProcessedRef.current = false;
+      // Normal reveal: some held, some dropped - start reveal sequence
       return {
         ...prev,
         gamePhase: 'reveal',
-        revealState: {
-          currentPlayerIndex: 0,
-          currentCardIndex: 0,
-          isRevealing: true,
-        },
       };
     });
   }, []);
@@ -531,91 +538,12 @@ export function useGutsGame() {
     }
   }, [state.countdown, state.gamePhase, makeAIDecisions, startRevealPhase]);
 
-  // New reveal sequence effect
+  // Reveal sequence effect - triggered when gamePhase becomes 'reveal'
   useEffect(() => {
-    if (state.gamePhase !== 'reveal') {
-      return;
+    if (state.gamePhase === 'reveal') {
+      runRevealSequence();
     }
-
-    const holders = state.players.filter(p => p.isActive && p.decision === 'hold');
-    const totalGhostCards = state.ghostHands.length * 2;
-
-    if (revealPhase === 'waiting' && !phaseProcessedRef.current) {
-      phaseProcessedRef.current = true;
-      // 2 second delay before revealing player cards
-      revealTimeoutRef.current = setTimeout(() => {
-        setRevealPhase('reveal-players');
-        phaseProcessedRef.current = false;
-      }, 2000);
-      return () => {
-        if (revealTimeoutRef.current) {
-          clearTimeout(revealTimeoutRef.current);
-        }
-      };
-    }
-
-    if (revealPhase === 'reveal-players' && !phaseProcessedRef.current) {
-      phaseProcessedRef.current = true;
-      // Reveal all player cards at once
-      revealAllPlayerCards();
-
-      // 2 second delay before ghost cards (or resolve if no ghosts)
-      revealTimeoutRef.current = setTimeout(() => {
-        if (state.ghostHands.length > 0) {
-          setRevealPhase('reveal-ghost-delay');
-        } else {
-          resolveRound();
-        }
-        phaseProcessedRef.current = false;
-      }, 2000);
-      return () => {
-        if (revealTimeoutRef.current) {
-          clearTimeout(revealTimeoutRef.current);
-        }
-      };
-    }
-
-    if (revealPhase === 'reveal-ghost-delay' && !phaseProcessedRef.current) {
-      phaseProcessedRef.current = true;
-      // Start revealing ghost cards
-      revealTimeoutRef.current = setTimeout(() => {
-        setRevealPhase('reveal-ghosts');
-        phaseProcessedRef.current = false;
-      }, 500);
-      return () => {
-        if (revealTimeoutRef.current) {
-          clearTimeout(revealTimeoutRef.current);
-        }
-      };
-    }
-
-    if (revealPhase === 'reveal-ghosts') {
-      if (ghostCardIndex < totalGhostCards) {
-        // Reveal next ghost card
-        revealTimeoutRef.current = setTimeout(() => {
-          revealNextGhostCard();
-        }, 800);
-        return () => {
-          if (revealTimeoutRef.current) {
-            clearTimeout(revealTimeoutRef.current);
-          }
-        };
-      } else if (!revealCompleteProcessedRef.current) {
-        // All ghost cards revealed, resolve round
-        revealCompleteProcessedRef.current = true;
-        setTimeout(() => resolveRound(), 1000);
-      }
-    }
-  }, [
-    state.gamePhase,
-    state.ghostHands.length,
-    state.players,
-    revealPhase,
-    ghostCardIndex,
-    revealAllPlayerCards,
-    revealNextGhostCard,
-    resolveRound,
-  ]);
+  }, [state.gamePhase, runRevealSequence]);
 
   const nextRound = useCallback(() => {
     const activeCount = state.players.filter(p => p.isActive).length;
