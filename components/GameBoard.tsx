@@ -162,9 +162,12 @@ function Particles({ active, type }: { active: boolean; type: 'win' | 'sixnine' 
 // Daily reward claimed toast
 function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak: number; onClose: () => void }) {
   useEffect(() => {
-    const timer = setTimeout(onClose, 4000);
+    const timer = setTimeout(() => {
+      onClose();
+    }, 4000);
     return () => clearTimeout(timer);
-  }, [onClose]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   return (
     <div
@@ -182,7 +185,9 @@ function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak:
         zIndex: 400,
         boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4)',
         animation: 'slide-down 0.4s ease-out',
+        cursor: 'pointer',
       }}
+      onClick={onClose}
     >
       <span style={{ fontSize: '32px' }}>🎁</span>
       <div>
@@ -190,8 +195,11 @@ function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak:
           +{tokens} Tokens Claimed!
         </div>
         <div style={{ color: 'rgba(15, 23, 42, 0.7)', fontSize: '12px' }}>
-          Day {streak} streak bonus
+          Day {streak} streak{streak > 1 ? ` (+${(streak - 1) * 10} bonus)` : ''}
         </div>
+      </div>
+      <div style={{ color: 'rgba(15, 23, 42, 0.5)', fontSize: '10px', marginLeft: '8px' }}>
+        tap to close
       </div>
       <style jsx>{`
         @keyframes slide-down {

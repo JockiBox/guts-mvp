@@ -12,13 +12,17 @@ interface PotProps {
 
 export function Pot({ amount, ghostHands, winners, showGhostCards }: PotProps) {
   const tokenStyle: React.CSSProperties = {
-    width: 24,
-    height: 24,
+    width: 20,
+    height: 20,
     borderRadius: '50%',
     background: 'linear-gradient(135deg, #fbbf24, #d97706)',
     border: '2px solid #b45309',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
   };
+
+  // Calculate pot area size based on ghost count
+  const hasGhosts = ghostHands.length > 0;
+  const potSize = hasGhosts ? 120 : 140;
 
   return (
     <div
@@ -26,14 +30,16 @@ export function Pot({ amount, ghostHands, winners, showGhostCards }: PotProps) {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '16px',
+        gap: '4px',
+        position: 'relative',
+        zIndex: 5, // Keep pot behind player cards
       }}
     >
       {/* Pot Display */}
       <div
         style={{
-          width: 160,
-          height: 160,
+          width: potSize,
+          height: potSize,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -44,13 +50,13 @@ export function Pot({ amount, ghostHands, winners, showGhostCards }: PotProps) {
       >
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div style={tokenStyle} />
-          <div style={{ ...tokenStyle, marginLeft: -12 }} />
-          <div style={{ ...tokenStyle, marginLeft: -12 }} />
+          <div style={{ ...tokenStyle, marginLeft: -10 }} />
+          <div style={{ ...tokenStyle, marginLeft: -10 }} />
         </div>
         <div
           style={{
-            marginTop: 8,
-            fontSize: 32,
+            marginTop: 4,
+            fontSize: hasGhosts ? 24 : 28,
             fontWeight: 900,
             color: '#fbbf24',
             textShadow: '0 0 10px rgba(251,191,36,0.5)',
@@ -58,18 +64,19 @@ export function Pot({ amount, ghostHands, winners, showGhostCards }: PotProps) {
         >
           {amount}
         </div>
-        <div style={{ fontSize: 14, color: '#94a3b8' }}>POT</div>
+        <div style={{ fontSize: 12, color: '#94a3b8' }}>POT</div>
       </div>
 
-      {/* Ghost Hands */}
+      {/* Ghost Hands - Compact row below pot */}
       {ghostHands.length > 0 && (
         <div
           style={{
             display: 'flex',
-            gap: ghostHands.length > 3 ? 4 : 8,
+            gap: 2,
             flexWrap: 'wrap',
             justifyContent: 'center',
-            maxWidth: ghostHands.length > 4 ? 500 : 400,
+            maxWidth: 280,
+            marginTop: -8,
           }}
         >
           {ghostHands.map((ghost, idx) => (
@@ -79,7 +86,7 @@ export function Pot({ amount, ghostHands, winners, showGhostCards }: PotProps) {
               index={idx}
               isWinner={winners.includes(ghost.id)}
               showCards={showGhostCards}
-              compact={ghostHands.length > 2}
+              compact={true}
             />
           ))}
         </div>

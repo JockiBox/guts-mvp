@@ -6,12 +6,13 @@ interface CardProps {
   card: CardType | null;
   revealed: boolean;
   isFlipping?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   isWinner?: boolean;
   isSixNine?: boolean;
 }
 
 const sizes = {
+  xs: { width: 32, height: 46, fontSize: 10, suitSize: 12, centerSuit: 14 },
   sm: { width: 52, height: 76, fontSize: 14, suitSize: 18, centerSuit: 22 },
   md: { width: 70, height: 100, fontSize: 18, suitSize: 22, centerSuit: 28 },
   lg: { width: 90, height: 126, fontSize: 22, suitSize: 26, centerSuit: 36 },

@@ -14,69 +14,33 @@ interface GhostHandProps {
 }
 
 export function GhostHand({ ghost, index, isWinner, showCards, isNew, compact }: GhostHandProps) {
-  // Always use compact sizing to fit more ghosts
-  const useCompact = true;
-
   return (
     <div
       style={{
         position: 'relative',
-        background: 'linear-gradient(135deg, rgba(88, 28, 135, 0.4), rgba(139, 92, 246, 0.2), rgba(88, 28, 135, 0.4))',
-        borderRadius: 10,
-        padding: compact ? 6 : 8,
+        background: 'linear-gradient(135deg, rgba(88, 28, 135, 0.5), rgba(139, 92, 246, 0.3))',
+        borderRadius: 6,
+        padding: '4px 6px',
         border: isWinner
           ? '2px solid #fbbf24'
-          : '1px solid rgba(168, 85, 247, 0.6)',
+          : '1px solid rgba(168, 85, 247, 0.5)',
         boxShadow: isWinner
-          ? '0 0 20px rgba(251, 191, 36, 0.5), inset 0 0 10px rgba(251, 191, 36, 0.1)'
-          : '0 0 15px rgba(168, 85, 247, 0.4), inset 0 0 15px rgba(139, 92, 246, 0.1)',
+          ? '0 0 12px rgba(251, 191, 36, 0.4)'
+          : '0 0 8px rgba(168, 85, 247, 0.3)',
         animation: isNew
-          ? 'ghost-entrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)'
-          : 'ghost-hover 3s ease-in-out infinite',
-        transform: compact ? 'scale(0.75)' : 'scale(0.85)',
+          ? 'ghost-entrance 0.5s ease-out'
+          : undefined,
+        transform: 'scale(0.65)',
         transformOrigin: 'center center',
+        margin: '-8px',
       }}
     >
-      {/* Eerie glow effect */}
       <div
         style={{
-          position: 'absolute',
-          inset: -4,
-          background: 'radial-gradient(ellipse at center, rgba(168, 85, 247, 0.3), transparent 70%)',
-          borderRadius: 20,
-          animation: 'ghost-pulse 2s ease-in-out infinite',
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Floating particles */}
-      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: 16, pointerEvents: 'none' }}>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              width: 4,
-              height: 4,
-              background: 'rgba(216, 180, 254, 0.8)',
-              borderRadius: '50%',
-              left: `${20 + i * 15}%`,
-              bottom: 0,
-              animation: `ghost-particle ${2 + i * 0.3}s ease-in-out infinite ${i * 0.2}s`,
-              boxShadow: '0 0 6px rgba(216, 180, 254, 0.8)',
-            }}
-          />
-        ))}
-      </div>
-
-      <div
-        style={{
-          position: 'relative',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 8,
-          zIndex: 1,
+          gap: 2,
         }}
       >
         {/* Ghost icon and label */}
@@ -84,25 +48,15 @@ export function GhostHand({ ghost, index, isWinner, showCards, isNew, compact }:
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 4,
+            gap: 2,
           }}
         >
-          <span
-            style={{
-              fontSize: 14,
-              animation: 'ghost-wobble 2s ease-in-out infinite',
-              filter: 'drop-shadow(0 0 6px rgba(168, 85, 247, 0.8))',
-            }}
-          >
-            👻
-          </span>
+          <span style={{ fontSize: 12 }}>👻</span>
           <span
             style={{
               color: '#e9d5ff',
               fontWeight: 'bold',
-              fontSize: 10,
-              textShadow: '0 0 8px rgba(168, 85, 247, 0.8)',
-              letterSpacing: '0.5px',
+              fontSize: 9,
             }}
           >
             #{index + 1}
@@ -110,37 +64,26 @@ export function GhostHand({ ghost, index, isWinner, showCards, isNew, compact }:
         </div>
 
         {/* Cards */}
-        <div style={{ display: 'flex', gap: 3 }}>
+        <div style={{ display: 'flex', gap: 2 }}>
           {ghost.cards.map((card, idx) => (
-            <div
+            <Card
               key={idx}
-              style={{
-                filter: showCards && ghost.cardsRevealed > idx
-                  ? 'drop-shadow(0 0 10px rgba(168, 85, 247, 0.6))'
-                  : 'none',
-              }}
-            >
-              <Card
-                card={card}
-                revealed={showCards && ghost.cardsRevealed > idx}
-                isFlipping={ghost.cardsRevealed === idx + 1}
-                size="sm"
-              />
-            </div>
+              card={card}
+              revealed={showCards && ghost.cardsRevealed > idx}
+              isFlipping={ghost.cardsRevealed === idx + 1}
+              size="xs"
+            />
           ))}
         </div>
 
-        {/* Hand description */}
+        {/* Hand description - only show when revealed */}
         {showCards && ghost.cardsRevealed === 2 && (
           <div
             style={{
-              fontSize: 12,
+              fontSize: 8,
               fontWeight: 'bold',
-              color: isWinner ? '#fbbf24' : '#e9d5ff',
-              textShadow: isWinner
-                ? '0 0 15px rgba(251, 191, 36, 0.8)'
-                : '0 0 10px rgba(168, 85, 247, 0.6)',
-              animation: isWinner ? 'ghost-win-text 0.5s ease-out' : 'none',
+              color: isWinner ? '#fbbf24' : '#c4b5fd',
+              whiteSpace: 'nowrap',
             }}
           >
             {getHandDescription(ghost.cards)}
@@ -152,77 +95,11 @@ export function GhostHand({ ghost, index, isWinner, showCards, isNew, compact }:
         @keyframes ghost-entrance {
           0% {
             opacity: 0;
-            transform: scale(0.3) translateY(50px);
-            filter: blur(10px);
-          }
-          50% {
-            opacity: 1;
-            transform: scale(1.1) translateY(-10px);
-            filter: blur(0);
+            transform: scale(0.3);
           }
           100% {
-            transform: scale(1) translateY(0);
-          }
-        }
-        @keyframes ghost-hover {
-          0%, 100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-5px);
-          }
-        }
-        @keyframes ghost-pulse {
-          0%, 100% {
-            opacity: 0.5;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.8;
-            transform: scale(1.05);
-          }
-        }
-        @keyframes ghost-wobble {
-          0%, 100% {
-            transform: rotate(-5deg);
-          }
-          50% {
-            transform: rotate(5deg);
-          }
-        }
-        @keyframes ghost-particle {
-          0%, 100% {
-            transform: translateY(0) scale(1);
-            opacity: 0;
-          }
-          10% {
             opacity: 1;
-          }
-          90% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-60px) scale(0.5);
-            opacity: 0;
-          }
-        }
-        @keyframes blink {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.4;
-          }
-        }
-        @keyframes ghost-win-text {
-          0% {
-            transform: scale(1);
-          }
-          50% {
-            transform: scale(1.2);
-          }
-          100% {
-            transform: scale(1);
+            transform: scale(0.65);
           }
         }
       `}</style>

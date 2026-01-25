@@ -14,9 +14,9 @@ export function HelpLegend({ isExpanded: initialExpanded = false }: HelpLegendPr
     <div
       style={{
         position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        zIndex: 200,
+        bottom: '80px',
+        right: '16px',
+        zIndex: 9999,
       }}
     >
       {/* Collapsed state - just a help button */}
