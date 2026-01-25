@@ -422,9 +422,13 @@ export function GameBoard() {
 
   // Handle mystery box reward
   const handleMysteryBoxReward = useCallback((reward: MysteryBoxReward) => {
+    console.log('[MYSTERY BOX] Reward received:', reward);
     if (reward.type === 'tokens' && reward.value) {
       const amount = typeof reward.value === 'number' ? reward.value : parseInt(reward.value, 10);
+      console.log('[MYSTERY BOX] Adding tokens:', amount);
       addTokens(amount);
+    } else {
+      console.log('[MYSTERY BOX] Not a token reward or no value:', { type: reward.type, value: reward.value });
     }
     // Other reward types would unlock items in wallet
     setWallet(loadWallet());
