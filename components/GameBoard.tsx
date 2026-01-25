@@ -2860,7 +2860,7 @@ export function GameBoard() {
       {/* Power-up Shop */}
       {showPowerUpShop && (
         <PowerUpShop
-          playerTokens={user?.tokens ?? getGuestTokens()}
+          playerTokens={displayTokens}
           onPurchase={handlePowerUpPurchase}
           onClose={() => setShowPowerUpShop(false)}
         />
@@ -2922,7 +2922,7 @@ export function GameBoard() {
           }}
         >
           <SideBetsPanel
-            playerTokens={user?.tokens ?? getGuestTokens()}
+            playerTokens={displayTokens}
             currentBets={activeSideBets}
             canPlaceBets={isDecisionPhase && !humanDecided}
             onPlaceBet={handlePlaceSideBet}
