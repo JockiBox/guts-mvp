@@ -2,7 +2,7 @@
 // Allows players to pause during decision phase to think, use power-ups, taunt, etc.
 
 const STORAGE_KEY = 'guts_pause_tokens';
-const PAUSE_DURATION = 15; // seconds
+const PAUSE_DURATION = 20; // seconds
 
 export interface PauseTokenState {
   tokens: number;
@@ -93,7 +93,7 @@ export const PAUSE_TOKEN_SHOP = [
   {
     id: 'pause_1',
     name: 'Pause Token',
-    description: '1 pause token - 15 seconds to think',
+    description: '1 pause token - 20 seconds to think',
     price: 50,
     amount: 1,
     icon: '⏸️',

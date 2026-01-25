@@ -299,6 +299,9 @@ export function GameBoard() {
   const [pauseTokens, setPauseTokens] = useState(1);
   const [pauseTokenEarned, setPauseTokenEarned] = useState(false);
 
+  // Guest token state (for tracking localStorage tokens with UI updates)
+  const [localTokens, setLocalTokens] = useState(100);
+
   const lastCountdown = useRef<number | null>(null);
   const pauseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastPhase = useRef<string>('start');
@@ -318,6 +321,19 @@ export function GameBoard() {
     setPauseTokens(getPauseTokenCount());
     setRevengeTarget(getTopRevengeTarget());
     resetSessionCombos();
+    setLocalTokens(getGuestTokens()); // Initialize from localStorage
+  }, []);
+
+  // Helper to add tokens and update both localStorage and state
+  const addTokens = useCallback((amount: number) => {
+    addGuestTokens(amount);
+    setLocalTokens(getGuestTokens());
+  }, []);
+
+  // Helper to deduct tokens and update both localStorage and state
+  const deductTokens = useCallback((amount: number) => {
+    deductGuestTokens(amount);
+    setLocalTokens(getGuestTokens());
   }, []);
 
   // Handle emote from player
@@ -336,20 +352,20 @@ export function GameBoard() {
 
   // Handle side bet placement
   const handlePlaceSideBet = useCallback((bet: SideBet) => {
-    const displayTokens = user?.tokens ?? getGuestTokens();
-    const result = placeSideBet(activeSideBets, bet, displayTokens);
+    const currentTokens = user?.tokens ?? localTokens;
+    const result = placeSideBet(activeSideBets, bet, currentTokens);
     if (result.success) {
       setActiveSideBets(result.updatedBets);
       // Deduct tokens
       if (user) {
         // For logged in users, would need to sync with backend
       } else {
-        deductGuestTokens(bet.amount);
+        deductTokens(bet.amount);
       }
       return { success: true };
     }
     return { success: false, error: result.error };
-  }, [activeSideBets, user]);
+  }, [activeSideBets, user, localTokens, deductTokens]);
 
   // Handle theme change
   const handleThemeChange = useCallback((theme: TableTheme) => {
@@ -362,40 +378,38 @@ export function GameBoard() {
       // Would need backend integration
       return true;
     } else {
-      const tokens = getGuestTokens();
-      if (tokens >= cost) {
-        deductGuestTokens(cost);
+      if (localTokens >= cost) {
+        deductTokens(cost);
         return true;
       }
     }
     return false;
-  }, [user]);
+  }, [user, localTokens, deductTokens]);
 
   // Handle power-up purchase
   const handlePowerUpPurchase = useCallback((type: PowerUpType, cost: number) => {
     if (user) {
       // Would need backend integration
     } else {
-      const tokens = getGuestTokens();
-      if (tokens >= cost) {
-        const result = purchasePowerUp(type, tokens);
+      if (localTokens >= cost) {
+        const result = purchasePowerUp(type, localTokens);
         if (result.success) {
-          // Tokens already deducted in purchasePowerUp
+          deductTokens(cost);
         }
       }
     }
     playTokens();
-  }, [user]);
+  }, [user, localTokens, deductTokens]);
 
   // Handle daily challenge reward claim
   const handleChallengeReward = useCallback((reward: number) => {
     if (user) {
       // Would need backend integration
     } else {
-      addGuestTokens(reward);
+      addTokens(reward);
     }
     playTokens();
-  }, [user]);
+  }, [user, addTokens]);
 
   // Handle taunt from player
   const handleTaunt = useCallback((taunt: Taunt, response: string | null) => {
@@ -408,21 +422,21 @@ export function GameBoard() {
   const handleMysteryBoxReward = useCallback((reward: MysteryBoxReward) => {
     if (reward.type === 'tokens' && reward.value) {
       const amount = typeof reward.value === 'number' ? reward.value : parseInt(reward.value, 10);
-      addGuestTokens(amount); // Always add to local storage tokens
+      addTokens(amount);
     }
     // Other reward types would unlock items in wallet
     setWallet(loadWallet());
     playWin();
-  }, []);
+  }, [addTokens]);
 
   // Handle wheel spin reward
   const handleWheelReward = useCallback((reward: { type: string; value: number }) => {
     if (reward.type === 'tokens') {
-      addGuestTokens(reward.value); // Always add to local storage tokens
+      addTokens(reward.value);
     }
     setWheelState(loadWheelState());
     playTokens();
-  }, []);
+  }, [addTokens]);
 
   // Handle game mode selection
   const handleGameModeSelect = useCallback((mode: GameMode) => {
@@ -436,19 +450,19 @@ export function GameBoard() {
   const handleStartGame = useCallback((numPlayers?: number) => {
     // Deduct 1 token ante for the human player
     if (!user) {
-      deductGuestTokens(1);
+      deductTokens(1);
     }
     startGame(numPlayers);
-  }, [user, startGame]);
+  }, [user, startGame, deductTokens]);
 
   // Wrapper for nextRound that deducts ante from guestTokens
   const handleNextRound = useCallback(() => {
     // Deduct 1 token ante for the human player
     if (!user) {
-      deductGuestTokens(1);
+      deductTokens(1);
     }
     nextRound();
-  }, [user, nextRound]);
+  }, [user, nextRound, deductTokens]);
 
   // Generate bot rivalry messages occasionally
   useEffect(() => {
@@ -496,7 +510,7 @@ export function GameBoard() {
             if (user) {
               // Backend integration needed
             } else {
-              addGuestTokens(totalReward);
+              addTokens(totalReward);
             }
           }
         }
@@ -574,7 +588,7 @@ export function GameBoard() {
           if (user) {
             // Backend integration
           } else {
-            addGuestTokens(totalWinnings);
+            addTokens(totalWinnings);
           }
         }
 
@@ -693,7 +707,7 @@ export function GameBoard() {
         setActiveCombos(comboResult.combosTriggered);
         // Award combo bonuses
         if (comboResult.totalBonus > 0) {
-          addGuestTokens(comboResult.totalBonus); // Always add to local storage tokens
+          addTokens(comboResult.totalBonus);
         }
       }
 
@@ -701,7 +715,7 @@ export function GameBoard() {
       if (won) {
         const luckyResult = checkLuckyNumber(humanPlayer.cards, won);
         if (luckyResult.bonus > 0) {
-          addGuestTokens(luckyResult.bonus);
+          addTokens(luckyResult.bonus);
         }
       }
 
@@ -733,7 +747,7 @@ export function GameBoard() {
           if (revenge) {
             completeRevenge(bot.id);
             setRevengeMessage(`REVENGE on ${bot.name}! +${revenge.bounty} bonus!`);
-            addGuestTokens(revenge.bounty); // Always add to local storage tokens
+            addTokens(revenge.bounty);
             setTimeout(() => setRevengeMessage(null), 2000);
             setRevengeTarget(getTopRevengeTarget());
           }
@@ -828,9 +842,9 @@ export function GameBoard() {
         } else {
           // Guest - update localStorage tokens
           if (won && tokensWon > 0) {
-            addGuestTokens(tokensWon);
+            addTokens(tokensWon);
           } else if (lost && tokensLost > 0) {
-            deductGuestTokens(tokensLost);
+            deductTokens(tokensLost);
           }
         }
       }
@@ -1057,8 +1071,8 @@ export function GameBoard() {
     }
   }, [gamePhase, players, ghostHands]);
 
-  // Get display tokens (from user if logged in, otherwise guest tokens)
-  const displayTokens = user?.tokens ?? getGuestTokens();
+  // Get display tokens (from user if logged in, otherwise local state tokens)
+  const displayTokens = user?.tokens ?? localTokens;
 
   if (gamePhase === 'start') {
     return (
@@ -2885,12 +2899,12 @@ export function GameBoard() {
       <AvatarStore
         isOpen={showAvatarStore}
         onClose={() => setShowAvatarStore(false)}
-        currentTokens={user?.tokens ?? getGuestTokens()}
+        currentTokens={displayTokens}
         onPurchase={(cost) => {
           if (user) {
             // Logged in user - would update Supabase
           } else {
-            deductGuestTokens(cost);
+            deductTokens(cost);
           }
         }}
         avatar={playerAvatar}
@@ -2910,7 +2924,7 @@ export function GameBoard() {
       {showThemeSelector && (
         <ThemeSelector
           onThemeChange={handleThemeChange}
-          playerTokens={user?.tokens ?? getGuestTokens()}
+          playerTokens={displayTokens}
           totalWins={loadAchievements().totalWins}
           unlockedAchievements={loadAchievements().unlocked}
           onPurchase={handleThemePurchase}
@@ -2957,7 +2971,7 @@ export function GameBoard() {
           playerTokens={displayTokens}
           onPurchase={(cost) => {
             if (displayTokens >= cost) {
-              deductGuestTokens(cost);
+              deductTokens(cost);
               return true;
             }
             return false;
@@ -2976,7 +2990,7 @@ export function GameBoard() {
           }}
           onReward={(reward) => {
             if (reward.type === 'tokens' && typeof reward.value === 'number') {
-              addGuestTokens(reward.value);
+              addTokens(reward.value);
             } else if (reward.type === 'pause_token' && typeof reward.value === 'number') {
               addPauseTokens(reward.value);
               setPauseTokens(getPauseTokenCount());
@@ -3098,7 +3112,7 @@ export function GameBoard() {
         <div
           style={{
             position: 'fixed',
-            top: '120px',
+            bottom: '300px',
             left: '50%',
             transform: 'translateX(-50%)',
             background: 'rgba(239, 68, 68, 0.15)',
@@ -3124,7 +3138,7 @@ export function GameBoard() {
         <div
           style={{
             position: 'fixed',
-            top: '120px',
+            bottom: '240px',
             right: '8px',
             background: 'rgba(239, 68, 68, 0.2)',
             borderRadius: '12px',
