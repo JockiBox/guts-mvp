@@ -88,6 +88,17 @@ import { GAME_MODES, GameMode, GameModeType, loadUnlockedModes, checkModeUnlocks
 import { Taunt, getBotTauntResponse } from '@/lib/taunts';
 import { checkLuckyNumber, getLuckyNumber } from '@/lib/luckyNumbers';
 import { getReactionForSituation, getWinReaction, getLoseReaction } from '@/lib/botReactions';
+import { PlayerAvatar } from './PlayerAvatar';
+import { AvatarStore } from './AvatarStore';
+import {
+  PlayerAvatar as AvatarType,
+  DEFAULT_AVATAR,
+  loadGuestAvatar,
+  saveGuestAvatar,
+  loadGuestOwnedItems,
+  saveGuestOwnedItems,
+  getDefaultItems,
+} from '@/lib/avatars';
 
 // Particle component for celebrations
 function Particles({ active, type }: { active: boolean; type: 'win' | 'sixnine' | 'lose' }) {
@@ -259,6 +270,11 @@ export function GameBoard() {
   // Bot rivalry messages
   const [rivalryMessage, setRivalryMessage] = useState<{ from: string; to: string; message: string } | null>(null);
 
+  // Avatar customization state
+  const [showAvatarStore, setShowAvatarStore] = useState(false);
+  const [playerAvatar, setPlayerAvatar] = useState<AvatarType>(DEFAULT_AVATAR);
+  const [ownedAvatarItems, setOwnedAvatarItems] = useState<string[]>([]);
+
   // UI states
   const [shake, setShake] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -284,12 +300,14 @@ export function GameBoard() {
   const lastPot = useRef(0);
   const achievementCheckDone = useRef(false);
 
-  // Initialize theme, daily challenges, achievements, wallet, and wheel on mount
+  // Initialize theme, daily challenges, achievements, wallet, wheel, and avatar on mount
   useEffect(() => {
     setCurrentTheme(loadCurrentTheme());
     setDailyProgress(loadDailyChallenges());
     setWallet(loadWallet());
     setWheelState(loadWheelState());
+    setPlayerAvatar(loadGuestAvatar());
+    setOwnedAvatarItems(loadGuestOwnedItems());
     setRevengeTarget(getTopRevengeTarget());
     resetSessionCombos();
   }, []);
@@ -1565,6 +1583,26 @@ export function GameBoard() {
             🛒 <span className="shop-text">Shop</span>
           </button>
 
+          {/* Avatar Store Button */}
+          <button
+            onClick={() => {
+              playClick();
+              setShowAvatarStore(true);
+            }}
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              border: '2px solid #a855f7',
+              backdropFilter: 'blur(8px)',
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+            title="Avatar Store"
+          >
+            👤
+          </button>
+
           {/* Daily Challenges */}
           <DailyChallengeBadge onClick={() => { playClick(); setShowDailyChallenges(true); }} />
 
@@ -2628,6 +2666,31 @@ export function GameBoard() {
 
       {/* Achievements Panel */}
       {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
+
+      {/* Avatar Store */}
+      <AvatarStore
+        isOpen={showAvatarStore}
+        onClose={() => setShowAvatarStore(false)}
+        currentTokens={user?.tokens ?? getGuestTokens()}
+        onPurchase={(cost) => {
+          if (user) {
+            // Logged in user - would update Supabase
+          } else {
+            deductGuestTokens(cost);
+          }
+        }}
+        avatar={playerAvatar}
+        onAvatarChange={(newAvatar) => {
+          setPlayerAvatar(newAvatar);
+          saveGuestAvatar(newAvatar);
+        }}
+        ownedItems={ownedAvatarItems}
+        onItemPurchased={(itemId) => {
+          const newOwned = [...ownedAvatarItems, itemId];
+          setOwnedAvatarItems(newOwned);
+          saveGuestOwnedItems(newOwned);
+        }}
+      />
 
       {/* Theme Selector */}
       {showThemeSelector && (
