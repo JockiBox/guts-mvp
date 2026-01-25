@@ -65,6 +65,26 @@ import {
 } from '@/lib/sideBets';
 import { generateRivalryTaunt } from '@/lib/botRivalries';
 
+// New engagement feature imports
+import { WalletModal } from './WalletModal';
+import { LuckyWheelModal } from './LuckyWheelModal';
+import { MysteryBoxModal } from './MysteryBoxModal';
+import { SignUpPrompt } from './SignUpPrompt';
+import { GhostStoryOverlay } from './GhostStoryOverlay';
+import { TauntButtons, TauntDisplay } from './TauntButtons';
+import { ComboNotification, ComboStack } from './ComboNotification';
+import { GameModeSelector } from './GameModeSelector';
+import { loadWallet, Wallet } from '@/lib/wallet';
+import { loadWheelState, recordWinForWheel, WheelState } from '@/lib/luckyWheel';
+import { checkForMysteryBox, MysteryBoxReward } from '@/lib/mysteryBox';
+import { getRandomGhostWinStory, GhostStory } from '@/lib/ghostStories';
+import { recordLossToBot, checkRevenge, completeRevenge, getTopRevengeTarget, RevengeTarget } from '@/lib/revengeTracker';
+import { checkCombos, resetSessionCombos, Combo } from '@/lib/comboBonuses';
+import { GAME_MODES, GameMode, GameModeType, loadUnlockedModes, checkModeUnlocks, getMode } from '@/lib/gameModes';
+import { Taunt, getBotTauntResponse } from '@/lib/taunts';
+import { checkLuckyNumber, getLuckyNumber } from '@/lib/luckyNumbers';
+import { getReactionForSituation, getWinReaction, getLoseReaction } from '@/lib/botReactions';
+
 // Particle component for celebrations
 function Particles({ active, type }: { active: boolean; type: 'win' | 'sixnine' | 'lose' }) {
   const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; color: string; size: number; angle: number }>>([]);
@@ -196,6 +216,23 @@ export function GameBoard() {
   const [showSideBets, setShowSideBets] = useState(false);
   const [showSideBetResults, setSideBetResults] = useState<SideBetResult[] | null>(null);
 
+  // New engagement feature states
+  const [showWallet, setShowWallet] = useState(false);
+  const [showLuckyWheel, setShowLuckyWheel] = useState(false);
+  const [showMysteryBox, setShowMysteryBox] = useState(false);
+  const [showGameModeSelector, setShowGameModeSelector] = useState(false);
+  const [currentGameMode, setCurrentGameMode] = useState<GameModeType>('classic');
+  const [wheelState, setWheelState] = useState<WheelState | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [ghostStory, setGhostStory] = useState<GhostStory | null>(null);
+  const [activeCombos, setActiveCombos] = useState<Combo[]>([]);
+  const [activeTaunt, setActiveTaunt] = useState<{ taunt: Taunt; response: string | null } | null>(null);
+  const [revengeTarget, setRevengeTarget] = useState<RevengeTarget | null>(null);
+  const [revengeMessage, setRevengeMessage] = useState<string | null>(null);
+  const [signUpPromptRound, setSignUpPromptRound] = useState(0);
+  const [showSignUpPrompt, setShowSignUpPrompt] = useState(false);
+  const [botReactions, setBotReactions] = useState<Map<string, string>>(new Map());
+
   // Theme state
   const [currentTheme, setCurrentTheme] = useState<TableTheme | null>(null);
 
@@ -242,10 +279,14 @@ export function GameBoard() {
   const lastPot = useRef(0);
   const achievementCheckDone = useRef(false);
 
-  // Initialize theme, daily challenges, and achievements on mount
+  // Initialize theme, daily challenges, achievements, wallet, and wheel on mount
   useEffect(() => {
     setCurrentTheme(loadCurrentTheme());
     setDailyProgress(loadDailyChallenges());
+    setWallet(loadWallet());
+    setWheelState(loadWheelState());
+    setRevengeTarget(getTopRevengeTarget());
+    resetSessionCombos();
   }, []);
 
   // Handle emote from player
@@ -323,6 +364,45 @@ export function GameBoard() {
       addGuestTokens(reward);
     }
     playTokens();
+  }, [user]);
+
+  // Handle taunt from player
+  const handleTaunt = useCallback((taunt: Taunt, response: string | null) => {
+    if (!user) return; // Taunts only for logged in users
+    setActiveTaunt({ taunt, response });
+    playClick();
+  }, [user]);
+
+  // Handle mystery box reward
+  const handleMysteryBoxReward = useCallback((reward: MysteryBoxReward) => {
+    if (!user) return;
+    if (reward.type === 'tokens' && reward.value) {
+      const amount = typeof reward.value === 'number' ? reward.value : parseInt(reward.value, 10);
+      addGuestTokens(amount);
+      addGuestTokens(amount);
+    }
+    // Other reward types would unlock items in wallet
+    setWallet(loadWallet());
+    playWin();
+  }, [user]);
+
+  // Handle wheel spin reward
+  const handleWheelReward = useCallback((reward: { type: string; value: number }) => {
+    if (!user) return;
+    if (reward.type === 'tokens') {
+      addGuestTokens(reward.value);
+      addGuestTokens(reward.value);
+    }
+    setWheelState(loadWheelState());
+    playTokens();
+  }, [user]);
+
+  // Handle game mode selection
+  const handleGameModeSelect = useCallback((mode: GameMode) => {
+    if (!user) return; // Game modes only for logged in users
+    setCurrentGameMode(mode.id);
+    setShowGameModeSelector(false);
+    playClick();
   }, [user]);
 
   // Generate bot rivalry messages occasionally
@@ -528,6 +608,139 @@ export function GameBoard() {
       }
     }
   }, [gamePhase, winners, losers, humanPlayer]);
+
+  // New engagement features tracking
+  useEffect(() => {
+    if (gamePhase === 'summary' && humanPlayer) {
+      const won = winners.includes(humanPlayer.id);
+      const lost = losers.includes(humanPlayer.id);
+      const ghostWon = winners.some(w => w.startsWith('ghost'));
+      const beatGhost = won && ghostHands.length > 0;
+      const wasPair = humanPlayer.cards.length === 2 && humanPlayer.cards[0].rank === humanPlayer.cards[1].rank;
+      const handValue = getHandValue(humanPlayer.cards);
+      const isSixNine = humanPlayer.cards.length === 2 &&
+        [humanPlayer.cards[0].rank, humanPlayer.cards[1].rank].includes('6') &&
+        [humanPlayer.cards[0].rank, humanPlayer.cards[1].rank].includes('9');
+
+      // Track wins for lucky wheel
+      if (won && user) {
+        const wheelResult = recordWinForWheel();
+        setWheelState(wheelResult.state);
+      }
+
+      // Check for combos
+      const isAceHigh = humanPlayer.cards.some(c => c.rank === 'A');
+      const dropped = humanPlayer.decision === 'drop';
+      const wouldHaveLost = dropped && !won && !lost; // Dropped but could have lost
+      const currentTokens = user?.tokens ?? getGuestTokens();
+      const comboResult = checkCombos(
+        won,
+        handValue,
+        wasPair,
+        isAceHigh,
+        isSixNine,
+        beatGhost,
+        currentTokens,
+        wouldHaveLost,
+        dropped
+      );
+      if (comboResult.combosTriggered.length > 0 && user) {
+        setActiveCombos(comboResult.combosTriggered);
+        // Award combo bonuses
+        if (comboResult.totalBonus > 0) {
+          addGuestTokens(comboResult.totalBonus);
+          addGuestTokens(comboResult.totalBonus);
+        }
+      }
+
+      // Check for lucky number bonus (for logged in users)
+      if (won && user) {
+        const luckyResult = checkLuckyNumber(humanPlayer.cards, won);
+        if (luckyResult.bonus > 0) {
+          addGuestTokens(luckyResult.bonus);
+        }
+      }
+
+      // Track revenge
+      if (lost) {
+        const losingBot = players.find(p => !p.isHuman && winners.includes(p.id));
+        if (losingBot) {
+          recordLossToBot(losingBot.id, losingBot.name);
+          setRevengeTarget(getTopRevengeTarget());
+        }
+      }
+
+      // Check for revenge completion
+      if (won) {
+        const defeatedBots = players.filter(p => !p.isHuman && losers.includes(p.id));
+        for (const bot of defeatedBots) {
+          const revenge = checkRevenge(bot.id);
+          if (revenge) {
+            completeRevenge(bot.id);
+            setRevengeMessage(`REVENGE on ${bot.name}! +${revenge.bounty} bonus!`);
+            addGuestTokens(revenge.bounty);
+            if (user) addGuestTokens(revenge.bounty);
+            setTimeout(() => setRevengeMessage(null), 3000);
+            setRevengeTarget(getTopRevengeTarget());
+          }
+        }
+      }
+
+      // Ghost story for ghost wins
+      if (ghostWon && beatGhost === false) {
+        const story = getRandomGhostWinStory();
+        setGhostStory(story);
+      }
+
+      // Check for mystery box (random chance each round for logged in users)
+      if (user) {
+        const mysteryBoxResult = checkForMysteryBox();
+        if (mysteryBoxResult.appears) {
+          setTimeout(() => setShowMysteryBox(true), 2000);
+        }
+      }
+
+      // Check game mode unlocks
+      if (won && user) {
+        const currentTokens = user?.tokens ?? getGuestTokens();
+        checkModeUnlocks(loadAchievements().totalWins, currentTokens);
+      }
+    }
+  }, [gamePhase, humanPlayer, winners, losers, ghostHands, players, pot, user, winStreak, roundNumber]);
+
+  // Sign-up prompt for guests (every 5 rounds)
+  useEffect(() => {
+    if (gamePhase === 'decision' && !user) {
+      setSignUpPromptRound(prev => prev + 1);
+      if (signUpPromptRound > 0 && signUpPromptRound % 5 === 0) {
+        setShowSignUpPrompt(true);
+      }
+    }
+  }, [gamePhase, user, signUpPromptRound]);
+
+  // Bot reactions during reveal
+  useEffect(() => {
+    if (gamePhase === 'reveal' || gamePhase === 'summary') {
+      const newReactions = new Map<string, string>();
+      players.forEach(player => {
+        if (!player.isHuman && player.decision === 'hold') {
+          const isWinner = winners.includes(player.id);
+          const isLoser = losers.includes(player.id);
+          let reactionEmoji = '';
+          if (gamePhase === 'summary') {
+            const reaction = isWinner ? getWinReaction(false) : isLoser ? getLoseReaction(false) : getReactionForSituation('deciding');
+            reactionEmoji = reaction.emoji;
+          } else {
+            reactionEmoji = getReactionForSituation('deciding').emoji;
+          }
+          newReactions.set(player.id, reactionEmoji);
+        }
+      });
+      setBotReactions(newReactions);
+    } else {
+      setBotReactions(new Map());
+    }
+  }, [gamePhase, players, winners, losers]);
 
   // Close call detection
   useEffect(() => {
@@ -1356,6 +1569,81 @@ export function GameBoard() {
           >
             🎨
           </button>
+
+          {/* Game Modes - Only for logged in users */}
+          {user && (
+            <button
+              onClick={() => { playClick(); setShowGameModeSelector(true); }}
+              style={{
+                background: 'rgba(30, 41, 59, 0.9)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                border: '2px solid #a855f7',
+                cursor: 'pointer',
+                fontSize: '16px',
+              }}
+              title="Game Modes"
+            >
+              🎮
+            </button>
+          )}
+
+          {/* Wallet - Only for logged in users */}
+          {user && (
+            <button
+              onClick={() => { playClick(); setShowWallet(true); }}
+              style={{
+                background: 'rgba(30, 41, 59, 0.9)',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                border: '2px solid #14b8a6',
+                cursor: 'pointer',
+                fontSize: '16px',
+              }}
+              title="Wallet & Inventory"
+            >
+              👛
+            </button>
+          )}
+
+          {/* Lucky Wheel Badge - Only for logged in users with spins available */}
+          {user && wheelState && wheelState.spinsAvailable > 0 && (
+            <button
+              onClick={() => { playClick(); setShowLuckyWheel(true); }}
+              style={{
+                background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.3))',
+                borderRadius: '8px',
+                padding: '6px 10px',
+                border: '2px solid #fbbf24',
+                cursor: 'pointer',
+                fontSize: '16px',
+                position: 'relative',
+                animation: 'pulse-gold 1s ease-in-out infinite',
+              }}
+              title={`Lucky Wheel - ${wheelState.spinsAvailable} spin${wheelState.spinsAvailable > 1 ? 's' : ''} available!`}
+            >
+              🎡
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  right: '-6px',
+                  background: '#ef4444',
+                  color: 'white',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  borderRadius: '50%',
+                  width: '18px',
+                  height: '18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {wheelState.spinsAvailable}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* User Token Display & Auth */}
@@ -2102,6 +2390,16 @@ export function GameBoard() {
 
                   {/* Emote Buttons */}
                   <EmoteButtons onEmote={handleEmote} />
+
+                  {/* Taunt Buttons - Only for logged in users */}
+                  {user && aiPlayers.length > 0 && (
+                    <TauntButtons
+                      onTaunt={handleTaunt}
+                      targetBotName={aiPlayers[0].name}
+                      targetBotPersonality="aggressive"
+                      disabled={!isDecisionPhase || humanDecided}
+                    />
+                  )}
                 </div>
               )}
 
@@ -2342,6 +2640,185 @@ export function GameBoard() {
         />
       )}
 
+      {/* New Engagement Feature Modals */}
+
+      {/* Wallet Modal */}
+      {showWallet && user && (
+        <WalletModal
+          isOpen={showWallet}
+          onClose={() => setShowWallet(false)}
+          playerTokens={displayTokens}
+          onPurchase={(cost) => {
+            if (displayTokens >= cost) {
+              deductGuestTokens(cost);
+              return true;
+            }
+            return false;
+          }}
+          onEquipChange={() => setWallet(loadWallet())}
+        />
+      )}
+
+      {/* Lucky Wheel Modal */}
+      {showLuckyWheel && user && wheelState && (
+        <LuckyWheelModal
+          isOpen={showLuckyWheel}
+          onClose={() => {
+            setShowLuckyWheel(false);
+            setWheelState(loadWheelState());
+          }}
+          onReward={(reward) => {
+            if (reward.type === 'tokens' && typeof reward.value === 'number') {
+              addGuestTokens(reward.value);
+              addGuestTokens(reward.value);
+            }
+            setWheelState(loadWheelState());
+            playTokens();
+          }}
+        />
+      )}
+
+      {/* Mystery Box Modal */}
+      <MysteryBoxModal
+        isOpen={showMysteryBox}
+        onClose={() => setShowMysteryBox(false)}
+        onReward={handleMysteryBoxReward}
+      />
+
+      {/* Game Mode Selector */}
+      {showGameModeSelector && user && (
+        <GameModeSelector
+          currentMode={currentGameMode}
+          onSelectMode={handleGameModeSelect}
+          onClose={() => setShowGameModeSelector(false)}
+          totalWins={loadAchievements().totalWins}
+          currentTokens={displayTokens}
+        />
+      )}
+
+      {/* Ghost Story Overlay */}
+      {ghostStory && (
+        <GhostStoryOverlay
+          story={ghostStory}
+          onComplete={() => setGhostStory(null)}
+        />
+      )}
+
+      {/* Taunt Display */}
+      {activeTaunt && (
+        <TauntDisplay
+          taunt={activeTaunt.taunt}
+          playerName={user?.username || 'You'}
+          response={activeTaunt.response}
+          botName={aiPlayers[0]?.name || 'Bot'}
+          onComplete={() => setActiveTaunt(null)}
+        />
+      )}
+
+      {/* Combo Notification */}
+      {activeCombos.length === 1 && (
+        <ComboNotification
+          combo={activeCombos[0]}
+          onComplete={() => setActiveCombos([])}
+        />
+      )}
+
+      {/* Multiple Combos Stack */}
+      {activeCombos.length > 1 && (
+        <ComboStack
+          combos={activeCombos}
+          onComplete={() => setActiveCombos([])}
+        />
+      )}
+
+      {/* Sign Up Prompt for Guests */}
+      {showSignUpPrompt && !user && (
+        <SignUpPrompt
+          onSignUp={() => {
+            setShowSignUpPrompt(false);
+            setShowAuthModal(true);
+          }}
+          onDismiss={() => setShowSignUpPrompt(false)}
+        />
+      )}
+
+      {/* Revenge Message */}
+      {revengeMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(185, 28, 28, 0.95))',
+            borderRadius: '20px',
+            padding: '24px 40px',
+            textAlign: 'center',
+            zIndex: 1000,
+            boxShadow: '0 20px 60px rgba(239, 68, 68, 0.4)',
+            animation: 'revenge-appear 0.5s ease-out',
+          }}
+        >
+          <div style={{ fontSize: '48px', marginBottom: '12px' }}>⚔️</div>
+          <div style={{ color: 'white', fontSize: '24px', fontWeight: 'bold' }}>
+            {revengeMessage}
+          </div>
+        </div>
+      )}
+
+      {/* Revenge Target Indicator */}
+      {revengeTarget && gamePhase === 'decision' && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '280px',
+            right: '16px',
+            background: 'rgba(239, 68, 68, 0.2)',
+            borderRadius: '12px',
+            padding: '12px 16px',
+            border: '2px solid #ef4444',
+            zIndex: 200,
+            maxWidth: '200px',
+          }}
+        >
+          <div style={{ color: '#f87171', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>
+            REVENGE TARGET
+          </div>
+          <div style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: 'bold' }}>
+            {revengeTarget.botName}
+          </div>
+          <div style={{ color: '#94a3b8', fontSize: '11px' }}>
+            Beat them to earn +{10 + revengeTarget.timesLostTo * 5} bonus!
+          </div>
+        </div>
+      )}
+
+      {/* Bot Reactions Display */}
+      {botReactions.size > 0 && (
+        <>
+          {players.map(player => {
+            const reaction = botReactions.get(player.id);
+            if (!reaction || player.isHuman) return null;
+            return (
+              <div
+                key={`reaction-${player.id}`}
+                style={{
+                  position: 'fixed',
+                  top: '30%',
+                  left: `${20 + players.indexOf(player) * 20}%`,
+                  transform: 'translateX(-50%)',
+                  fontSize: '32px',
+                  animation: 'reaction-pop 0.5s ease-out',
+                  zIndex: 150,
+                }}
+              >
+                {reaction}
+              </div>
+            );
+          })}
+        </>
+      )}
+
       {/* All animations */}
       <style jsx global>{`
         @keyframes shake {
@@ -2514,6 +2991,29 @@ export function GameBoard() {
           50% { transform: scale(1.1) rotate(5deg); }
           75% { transform: scale(1.1) rotate(-5deg); }
           100% { transform: scale(1) rotate(0); }
+        }
+        @keyframes revenge-appear {
+          0% { transform: translate(-50%, -50%) scale(0) rotate(-10deg); opacity: 0; }
+          50% { transform: translate(-50%, -50%) scale(1.1) rotate(5deg); }
+          100% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 1; }
+        }
+        @keyframes reaction-pop {
+          0% { transform: translateX(-50%) scale(0); opacity: 0; }
+          50% { transform: translateX(-50%) scale(1.3); opacity: 1; }
+          100% { transform: translateX(-50%) scale(1); opacity: 1; }
+        }
+        @keyframes wheel-spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(1800deg); }
+        }
+        @keyframes mystery-shake {
+          0%, 100% { transform: rotate(0deg); }
+          25% { transform: rotate(-5deg); }
+          75% { transform: rotate(5deg); }
+        }
+        @keyframes combo-slide {
+          0% { transform: translateX(100%); opacity: 0; }
+          100% { transform: translateX(0); opacity: 1; }
         }
         @media (max-width: 768px) {
           .hold-drop-btn {
