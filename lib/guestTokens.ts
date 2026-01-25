@@ -1,9 +1,9 @@
 'use client';
 
-// Guest token management using localStorage and IP tracking
+// Guest token management using localStorage
 const GUEST_TOKENS_KEY = 'guts_guest_tokens';
 const GUEST_LAST_CLAIM_KEY = 'guts_guest_last_claim';
-const DAILY_GUEST_TOKENS = 25;
+const GUEST_STARTING_TOKENS = 100; // Guests start with 100 tokens
 
 interface GuestTokenData {
   tokens: number;
@@ -22,29 +22,18 @@ export function hasClaimedToday(): boolean {
   return lastClaim === getTodayDate();
 }
 
-// Get guest tokens (resets daily for guests)
+// Get guest tokens (persistent - no daily reset for guests)
 export function getGuestTokens(): number {
-  if (typeof window === 'undefined') return DAILY_GUEST_TOKENS;
-
-  const lastClaim = localStorage.getItem(GUEST_LAST_CLAIM_KEY);
-  const today = getTodayDate();
-
-  // If it's a new day, reset tokens
-  if (lastClaim !== today) {
-    localStorage.setItem(GUEST_LAST_CLAIM_KEY, today);
-    localStorage.setItem(GUEST_TOKENS_KEY, DAILY_GUEST_TOKENS.toString());
-    return DAILY_GUEST_TOKENS;
-  }
+  if (typeof window === 'undefined') return GUEST_STARTING_TOKENS;
 
   const stored = localStorage.getItem(GUEST_TOKENS_KEY);
   if (stored) {
     return parseInt(stored, 10);
   }
 
-  // First time today
-  localStorage.setItem(GUEST_LAST_CLAIM_KEY, today);
-  localStorage.setItem(GUEST_TOKENS_KEY, DAILY_GUEST_TOKENS.toString());
-  return DAILY_GUEST_TOKENS;
+  // First time playing - give starting tokens
+  localStorage.setItem(GUEST_TOKENS_KEY, GUEST_STARTING_TOKENS.toString());
+  return GUEST_STARTING_TOKENS;
 }
 
 // Update guest tokens

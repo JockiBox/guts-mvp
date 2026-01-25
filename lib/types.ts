@@ -41,6 +41,7 @@ export interface RevealState {
 export interface GameState {
   players: Player[];
   pot: number;
+  potWon: number; // Amount won in the last round (for tracking)
   gamePhase: GamePhase;
   countdown: number | null;
   ghostHands: GhostHand[];

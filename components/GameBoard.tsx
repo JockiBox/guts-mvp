@@ -140,6 +140,7 @@ export function GameBoard() {
   const {
     players,
     pot,
+    potWon,
     gamePhase,
     countdown,
     ghostHands,
@@ -255,20 +256,26 @@ export function GameBoard() {
     if (gamePhase === 'summary' && humanPlayer && !gameResultRecorded.current) {
       gameResultRecorded.current = true;
       const won = winners.includes(humanPlayer.id);
-      const tokensChange = won ? pot : losers.includes(humanPlayer.id) ? -pot : 0;
+      const lost = losers.includes(humanPlayer.id);
 
-      if (tokensChange !== 0) {
+      // Use potWon for winnings (the pot that was actually won before losers matched)
+      // For losses, losers match the original pot (which is now in potWon when ghost wins, or pot when player wins)
+      const tokensWon = won ? potWon : 0;
+      const tokensLost = lost ? pot : 0; // Losers pay into the new pot
+
+      if (tokensWon > 0 || tokensLost > 0) {
         if (user) {
           // Logged in user - record to database
-          recordGameResult(user.id, won, tokensChange).then(() => {
+          const netChange = tokensWon - tokensLost;
+          recordGameResult(user.id, won, netChange).then(() => {
             fetchProfile(); // Refresh user data
           });
         } else {
           // Guest - update localStorage tokens
-          if (won) {
-            addGuestTokens(pot);
-          } else if (losers.includes(humanPlayer.id)) {
-            deductGuestTokens(pot);
+          if (won && tokensWon > 0) {
+            addGuestTokens(tokensWon);
+          } else if (lost && tokensLost > 0) {
+            deductGuestTokens(tokensLost);
           }
         }
       }
@@ -277,7 +284,7 @@ export function GameBoard() {
     if (gamePhase === 'decision') {
       gameResultRecorded.current = false;
     }
-  }, [gamePhase, humanPlayer, user, winners, losers, pot, fetchProfile]);
+  }, [gamePhase, humanPlayer, user, winners, losers, pot, potWon, fetchProfile]);
 
   // Initialize sound state from localStorage
   useEffect(() => {

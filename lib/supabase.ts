@@ -116,7 +116,7 @@ export async function createUserProfile(userId: string, email: string, username:
     username,
     avatar_emoji: '😎',
     avatar_color: '#14b8a6',
-    tokens: 100, // Starting tokens
+    tokens: 500, // Starting tokens for signed-in users
     vip_level: 0,
     daily_streak: 0,
     last_daily_claim: null,
@@ -216,10 +216,10 @@ export async function claimDailyReward(userId: string): Promise<{ success: boole
     newStreak = profile.daily_streak + 1;
   }
 
-  // Calculate reward based on streak (caps at 7)
-  const baseReward = 10;
-  const streakBonus = Math.min(newStreak - 1, 6) * 5;
-  const vipBonus = profile.vip_level * 5;
+  // Daily reward is 500 tokens for signed-in users who play
+  const baseReward = 500;
+  const streakBonus = Math.min(newStreak - 1, 6) * 10; // Small bonus for streaks
+  const vipBonus = profile.vip_level * 25;
   const totalReward = baseReward + streakBonus + vipBonus;
 
   const { error } = await supabase

@@ -175,14 +175,18 @@ function calculateAIDecision(player: Player, difficulty: Difficulty): Decision {
 // Use top names from sports, entertainment, politics etc. for AI opponents
 // Example: GET /api/trending-names -> ["LeBron", "Taylor", "Elon", ...]
 
+// Token amounts
+const AI_STARTING_TOKENS = 500;
+const HUMAN_DEFAULT_TOKENS = 500; // Will be overridden by user profile or guest tokens
+
 function createInitialPlayers(playerCount: number = 5, currentProfileIds: string[] = []): Player[] {
   const players: Player[] = [];
 
-  // Human player first
+  // Human player first (tokens will be synced from user profile or guest storage)
   players.push({
     id: 'player-0',
     name: 'You',
-    tokens: 100,
+    tokens: HUMAN_DEFAULT_TOKENS,
     cards: [],
     isHuman: true,
     decision: null,
@@ -199,7 +203,7 @@ function createInitialPlayers(playerCount: number = 5, currentProfileIds: string
     players.push({
       id: `player-${i + 1}`,
       name: profile?.name || `Player ${i + 2}`,
-      tokens: 100,
+      tokens: AI_STARTING_TOKENS,
       cards: [],
       isHuman: false,
       decision: null,
@@ -219,6 +223,7 @@ function createInitialPlayers(playerCount: number = 5, currentProfileIds: string
 const initialState: GameState = {
   players: createInitialPlayers(),
   pot: 0,
+  potWon: 0,
   gamePhase: 'start',
   countdown: null,
   ghostHands: [],
@@ -470,7 +475,8 @@ export function useGutsGame() {
       return {
         ...prev,
         players: newPlayers,
-        pot: ghostWon ? newPot : newPot,
+        pot: newPot,
+        potWon: playerBeatsAllGhosts ? prev.pot : 0, // Track what was won
         ghostHands: newGhostHands,
         winners: playerBeatsAllGhosts ? winnerIds.filter(id => !id.startsWith('ghost')) : [],
         losers: actualLoserIds,
