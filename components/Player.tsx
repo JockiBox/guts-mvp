@@ -135,13 +135,41 @@ export function Player({ player, isWinner, isLoser, showCards, isHearted, onHear
         }}
       >
         {/* Avatar & Name */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {player.avatar && (
             <span style={{ fontSize: '16px' }}>{player.avatar}</span>
+          )}
+          {/* Level Badge */}
+          {player.levelBadge && (
+            <span
+              style={{
+                fontSize: '12px',
+                filter: 'drop-shadow(0 0 3px rgba(251, 191, 36, 0.5))',
+              }}
+              title={`Level ${player.experienceLevel} - ${(player.heartsReceived || 0)} hearts`}
+            >
+              {player.levelBadge}
+            </span>
           )}
           <span style={{ fontWeight: 'bold', color: '#14b8a6', fontSize: '13px' }}>
             {player.name}
           </span>
+          {/* Hearts count for popular bots */}
+          {(player.heartsReceived || 0) > 0 && (
+            <span
+              style={{
+                fontSize: '9px',
+                color: '#f472b6',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '2px',
+              }}
+              title={`${player.heartsReceived} total hearts`}
+            >
+              <span style={{ fontSize: '8px' }}>❤️</span>
+              {player.heartsReceived}
+            </span>
+          )}
         </div>
 
         {/* Token Count */}

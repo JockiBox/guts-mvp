@@ -12,7 +12,7 @@ import type {
   Decision,
 } from './types';
 import { RANK_VALUES, SUIT_VALUES } from './types';
-import { AI_PROFILES, selectGameProfiles, getTrashTalk, loadProfileStats, saveProfileStats, loadHeartedProfiles, saveHeartedProfiles, incrementGamesPlayed as incrementProfileGamesPlayed, type AIProfile } from './profiles';
+import { AI_PROFILES, selectGameProfiles, getTrashTalk, loadProfileStats, saveProfileStats, loadHeartedProfiles, saveHeartedProfiles, incrementGamesPlayed as incrementProfileGamesPlayed, getExperienceBonus, getProfileLevel, getLevelDisplay, type AIProfile } from './profiles';
 import { loadDifficulty, saveDifficulty, getDifficultyConfig, type Difficulty } from './difficulty';
 import { updateStatsAfterRound, incrementGamesPlayed as incrementPlayerGames, type Achievement } from './stats';
 
@@ -125,9 +125,14 @@ function calculateAIDecision(player: Player, difficulty: Difficulty): Decision {
   const config = getDifficultyConfig(difficulty);
   const handValue = getHandValue(player.cards);
 
+  // Experience bonus based on hearts received (makes bots smarter with more hearts)
+  const experienceBonus = getExperienceBonus(player.heartsReceived || 0);
+
   // Add some randomness based on difficulty (less accurate = more random mistakes)
+  // Experienced bots make fewer mistakes
+  const adjustedAccuracy = Math.min(0.98, config.aiAccuracy + experienceBonus);
   const accuracyRoll = Math.random();
-  const makeMistake = accuracyRoll > config.aiAccuracy;
+  const makeMistake = accuracyRoll > adjustedAccuracy;
 
   let holdProbability = 0.02; // Default: almost never hold garbage
 
@@ -224,6 +229,7 @@ const HUMAN_DEFAULT_TOKENS = 500; // Will be overridden by user profile or guest
 
 function createInitialPlayers(playerCount: number = 5, currentProfileIds: string[] = []): Player[] {
   const players: Player[] = [];
+  const stats = loadProfileStats();
 
   // Human player first (tokens will be synced from user profile or guest storage)
   players.push({
@@ -243,6 +249,10 @@ function createInitialPlayers(playerCount: number = 5, currentProfileIds: string
 
   for (let i = 0; i < playerCount - 1; i++) {
     const profile = aiProfiles[i];
+    const profileStats = profile?.id ? stats.get(profile.id) : undefined;
+    const heartsReceived = profileStats?.heartsReceived || 0;
+    const levelInfo = getLevelDisplay(heartsReceived);
+
     players.push({
       id: `player-${i + 1}`,
       name: profile?.name || `Player ${i + 2}`,
@@ -257,6 +267,9 @@ function createInitialPlayers(playerCount: number = 5, currentProfileIds: string
       avatar: profile?.avatar,
       catchphrase: profile?.catchphrase,
       currentThought: profile ? getTrashTalk(profile, 'idle') : undefined,
+      heartsReceived,
+      experienceLevel: levelInfo.level,
+      levelBadge: levelInfo.badge,
     });
   }
 

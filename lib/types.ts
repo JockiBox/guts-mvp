@@ -25,6 +25,9 @@ export interface Player {
   avatar?: string;
   catchphrase?: string;
   currentThought?: string; // Current speech bubble text
+  heartsReceived?: number; // Total hearts this bot has received
+  experienceLevel?: number; // Level based on hearts (0-10)
+  levelBadge?: string; // Visual badge for level
 }
 
 export interface GhostHand {

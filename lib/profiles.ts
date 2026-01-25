@@ -151,6 +151,69 @@ export function getTrashTalk(
 const STORAGE_KEY = 'guts_ai_profiles';
 const HEARTS_KEY = 'guts_hearted_profiles';
 
+// Milestone system - rewards at every 10 hearts
+export interface ProfileMilestone {
+  level: number; // 1 = 10 hearts, 2 = 20 hearts, etc.
+  experienceBonus: number; // +X% smarter decisions
+  wardrobeUnlock: string; // Special cosmetic
+  powerUpUnlock?: string; // Special power-up
+}
+
+export const MILESTONES: ProfileMilestone[] = [
+  { level: 1, experienceBonus: 0.05, wardrobeUnlock: '🌟', powerUpUnlock: 'peek' },
+  { level: 2, experienceBonus: 0.10, wardrobeUnlock: '👑' },
+  { level: 3, experienceBonus: 0.15, wardrobeUnlock: '💎', powerUpUnlock: 'shield' },
+  { level: 4, experienceBonus: 0.20, wardrobeUnlock: '🔥' },
+  { level: 5, experienceBonus: 0.25, wardrobeUnlock: '⚡', powerUpUnlock: 'double_down' },
+  { level: 6, experienceBonus: 0.30, wardrobeUnlock: '🌈' },
+  { level: 7, experienceBonus: 0.35, wardrobeUnlock: '✨', powerUpUnlock: 'third_card' },
+  { level: 8, experienceBonus: 0.40, wardrobeUnlock: '💫' },
+  { level: 9, experienceBonus: 0.45, wardrobeUnlock: '🏆', powerUpUnlock: 'ghost_shield' },
+  { level: 10, experienceBonus: 0.50, wardrobeUnlock: '👁️' },
+];
+
+// Get profile level based on hearts
+export function getProfileLevel(heartsReceived: number): number {
+  return Math.floor(heartsReceived / 10);
+}
+
+// Get milestone for a profile
+export function getProfileMilestone(heartsReceived: number): ProfileMilestone | null {
+  const level = getProfileLevel(heartsReceived);
+  if (level <= 0) return null;
+  return MILESTONES[Math.min(level - 1, MILESTONES.length - 1)];
+}
+
+// Get experience bonus for decision making
+export function getExperienceBonus(heartsReceived: number): number {
+  const milestone = getProfileMilestone(heartsReceived);
+  return milestone?.experienceBonus || 0;
+}
+
+// Get all unlocked wardrobe items for a profile
+export function getUnlockedWardrobe(heartsReceived: number): string[] {
+  const level = getProfileLevel(heartsReceived);
+  if (level <= 0) return [];
+  return MILESTONES.slice(0, level).map(m => m.wardrobeUnlock);
+}
+
+// Get level display info
+export function getLevelDisplay(heartsReceived: number): { level: number; badge: string; title: string; nextMilestone: number } {
+  const level = getProfileLevel(heartsReceived);
+  const nextMilestone = (level + 1) * 10;
+
+  const badges = ['', '🌟', '👑', '💎', '🔥', '⚡', '🌈', '✨', '💫', '🏆', '👁️'];
+  const titles = ['Rookie', 'Rising Star', 'Fan Favorite', 'Diamond Player', 'Hot Streak',
+                  'Lightning', 'Legendary', 'All-Star', 'Superstar', 'Champion', 'GOAT'];
+
+  return {
+    level,
+    badge: badges[Math.min(level, badges.length - 1)],
+    title: titles[Math.min(level, titles.length - 1)],
+    nextMilestone,
+  };
+}
+
 // Load profiles from localStorage
 export function loadProfileStats(): Map<string, { gamesPlayed: number; heartsReceived: number }> {
   if (typeof window === 'undefined') return new Map();
@@ -281,7 +344,8 @@ export function selectGameProfiles(count: number, currentProfileIds: string[] = 
     // Otherwise this profile gets cycled out - don't add to selected
   }
 
-  // Fill remaining slots with fresh profiles (prefer those with fewer games)
+  // Fill remaining slots with fresh profiles
+  // Priority: 1) Hearted profiles, 2) More hearts = more likely to appear, 3) Less-played for variety
   const freshProfiles = AI_PROFILES
     .filter(p => !usedIds.has(p.id))
     .map(p => ({
@@ -290,12 +354,20 @@ export function selectGameProfiles(count: number, currentProfileIds: string[] = 
       heartsReceived: stats.get(p.id)?.heartsReceived || 0,
     }))
     .sort((a, b) => {
-      // Prioritize hearted profiles
+      // Prioritize hearted profiles (user favorites always come first)
       const aHearted = hearts.has(a.id) ? 1 : 0;
       const bHearted = hearts.has(b.id) ? 1 : 0;
       if (aHearted !== bHearted) return bHearted - aHearted;
 
-      // Then prefer less-played profiles
+      // Then prioritize by total hearts received (popular bots appear more)
+      if (a.heartsReceived !== b.heartsReceived) {
+        // More hearts = more likely to appear, with some randomness
+        const aWeight = a.heartsReceived + Math.random() * 5;
+        const bWeight = b.heartsReceived + Math.random() * 5;
+        return bWeight - aWeight;
+      }
+
+      // Then prefer less-played profiles for variety
       if (a.gamesPlayed !== b.gamesPlayed) return a.gamesPlayed - b.gamesPlayed;
 
       // Add randomness for variety

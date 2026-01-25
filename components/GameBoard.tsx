@@ -90,6 +90,7 @@ import { checkLuckyNumber, getLuckyNumber } from '@/lib/luckyNumbers';
 import { getReactionForSituation, getWinReaction, getLoseReaction } from '@/lib/botReactions';
 import { PlayerAvatar } from './PlayerAvatar';
 import { AvatarStore } from './AvatarStore';
+import { HelpLegend } from './HelpLegend';
 import {
   PlayerAvatar as AvatarType,
   DEFAULT_AVATAR,
@@ -2911,6 +2912,9 @@ export function GameBoard() {
           })}
         </>
       )}
+
+      {/* Help Legend */}
+      <HelpLegend />
 
       {/* All animations */}
       <style jsx global>{`
