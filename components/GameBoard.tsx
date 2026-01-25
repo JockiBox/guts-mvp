@@ -452,21 +452,25 @@ export function GameBoard() {
     playClick();
   }, [user]);
 
-  // Wrapper for startGame that deducts ante
+  // Wrapper for startGame - new game always starts with pot=0, so ante is always collected
   const handleStartGame = useCallback((numPlayers?: number) => {
-    console.log('[GAME] handleStartGame called - deducting 1 token ante');
-    // Deduct 1 token ante for the human player (works for both logged-in and guests)
-    deductTokens(1);
+    console.log('[GAME] handleStartGame called - deducting ante (new game)');
+    deductTokens(1); // Deduct ante from account (game state handles its own)
     startGame(numPlayers);
   }, [startGame, deductTokens]);
 
-  // Wrapper for nextRound that deducts ante
+  // Wrapper for nextRound - only deduct ante from account if pot is empty
   const handleNextRound = useCallback(() => {
-    console.log('[GAME] handleNextRound called - deducting 1 token ante');
-    // Deduct 1 token ante for the human player (works for both logged-in and guests)
-    deductTokens(1);
+    console.log('[GAME] handleNextRound called, pot:', pot);
+    // Only deduct ante if pot is empty (losers didn't match, or everyone dropped)
+    if (pot === 0) {
+      console.log('[GAME] Pot is empty - deducting ante');
+      deductTokens(1);
+    } else {
+      console.log('[GAME] Pot has', pot, 'tokens - no ante needed (losers matched)');
+    }
     nextRound();
-  }, [nextRound, deductTokens]);
+  }, [nextRound, pot, deductTokens]);
 
   // Generate bot rivalry messages occasionally
   useEffect(() => {

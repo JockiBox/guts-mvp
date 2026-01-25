@@ -389,7 +389,23 @@ export function useGutsGame() {
       setThirdCardActive(false);
     }
 
-    collectAntes();
+    // Only collect antes if pot is empty (start of game or everyone dropped)
+    // If losers matched the pot, their payment IS the pot - no ante needed
+    setState(prev => {
+      if (prev.pot === 0) {
+        // Pot is empty - collect antes
+        const activeCount = prev.players.filter(p => p.isActive).length;
+        return {
+          ...prev,
+          pot: activeCount,
+          players: prev.players.map(player =>
+            player.isActive ? { ...player, tokens: player.tokens - 1 } : player
+          ),
+        };
+      }
+      return prev;
+    });
+
     dealCards(useThirdCard);
     setState(prev => {
       // Always ensure there's at least one ghost hand
