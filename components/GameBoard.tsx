@@ -136,7 +136,7 @@ function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak:
 
 export function GameBoard() {
   const { user, loading: userLoading, canClaimDaily, fetchProfile, claimDaily, buyItem, purchaseTokens } = useUser();
-  const { state, humanPlayer, startGame, makeHumanDecision, nextRound, playerCount, setPlayerCount, heartProfile, isProfileHearted, difficulty, setDifficulty, newAchievements, clearNewAchievements, setHumanTokens } = useGutsGame();
+  const { state, humanPlayer, startGame, resetToStart, makeHumanDecision, nextRound, playerCount, setPlayerCount, heartProfile, isProfileHearted, difficulty, setDifficulty, newAchievements, clearNewAchievements, setHumanTokens } = useGutsGame();
   const {
     players,
     pot,
@@ -169,6 +169,7 @@ export function GameBoard() {
   const [potPulse, setPotPulse] = useState(false);
   const [winStreak, setWinStreak] = useState(0);
   const [closeCallMessage, setCloseCallMessage] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   const lastCountdown = useRef<number | null>(null);
   const lastPhase = useRef<string>('start');
@@ -783,8 +784,122 @@ export function GameBoard() {
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="game-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Menu Button */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => {
+                playClick();
+                setShowMenu(prev => !prev);
+              }}
+              style={{
+                background: showMenu ? 'rgba(20, 184, 166, 0.2)' : 'rgba(30, 41, 59, 0.9)',
+                borderRadius: '8px',
+                padding: '8px 10px',
+                border: showMenu ? '2px solid #14b8a6' : '2px solid #334155',
+                backdropFilter: 'blur(8px)',
+                cursor: 'pointer',
+                fontSize: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+              }}
+              title="Menu"
+            >
+              ☰
+            </button>
+
+            {/* Dropdown Menu */}
+            {showMenu && (
+              <>
+                {/* Backdrop to close menu when clicking outside */}
+                <div
+                  onClick={() => setShowMenu(false)}
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 99,
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '8px',
+                    background: 'rgba(30, 41, 59, 0.98)',
+                    borderRadius: '12px',
+                    border: '2px solid #334155',
+                    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+                    overflow: 'hidden',
+                    zIndex: 100,
+                    minWidth: '180px',
+                    animation: 'menu-slide-down 0.2s ease-out',
+                  }}
+                >
+                  {/* New Game */}
+                  <button
+                    onClick={() => {
+                      playClick();
+                      setShowMenu(false);
+                      startGame();
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '14px 18px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: '1px solid #334155',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      color: '#e2e8f0',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      transition: 'background 0.15s ease',
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(20, 184, 166, 0.15)'}
+                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: '18px' }}>🔄</span>
+                    New Game
+                  </button>
+
+                  {/* Back to Start */}
+                  <button
+                    onClick={() => {
+                      playClick();
+                      setShowMenu(false);
+                      resetToStart();
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '14px 18px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      color: '#e2e8f0',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      transition: 'background 0.15s ease',
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(20, 184, 166, 0.15)'}
+                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: '18px' }}>🏠</span>
+                    Back to Start
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
           <div
             style={{
               background: 'rgba(30, 41, 59, 0.9)',
@@ -837,18 +952,19 @@ export function GameBoard() {
               gap: '4px',
             }}
           >
-            🛒 Shop
+            🛒 <span className="shop-text">Shop</span>
           </button>
         </div>
 
         {/* User Token Display & Auth */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {/* Token display */}
           <div
+            className="header-token-display"
             style={{
               background: 'linear-gradient(135deg, rgba(251,191,36,0.2), rgba(217,119,6,0.2))',
               borderRadius: '8px',
-              padding: '6px 16px',
+              padding: '6px 12px',
               border: '2px solid #fbbf24',
               boxShadow: '0 0 20px rgba(251,191,36,0.3)',
               animation: pot > 20
@@ -859,7 +975,7 @@ export function GameBoard() {
               transition: 'all 0.3s ease',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              gap: '6px',
             }}
           >
             <span style={{ fontSize: '14px' }}>🪙</span>
@@ -867,19 +983,20 @@ export function GameBoard() {
               style={{
                 color: '#fbbf24',
                 fontWeight: 'bold',
-                fontSize: '16px',
+                fontSize: '14px',
               }}
             >
               {displayTokens.toLocaleString()}
             </span>
           </div>
 
-          {/* Ante indicator */}
+          {/* Ante indicator - hidden on mobile */}
           <div
+            className="header-ante-display"
             style={{
               background: 'rgba(239, 68, 68, 0.15)',
               borderRadius: '8px',
-              padding: '6px 12px',
+              padding: '6px 10px',
               border: '2px solid #ef4444',
               display: 'flex',
               alignItems: 'center',
@@ -891,14 +1008,15 @@ export function GameBoard() {
             <span style={{ fontSize: '12px' }}>🪙</span>
           </div>
 
-          {/* Pot display */}
+          {/* Pot display - hidden on mobile (shown in center) */}
           <div
+            className="header-pot-display"
             style={{
               background: potPulse
                 ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.3))'
                 : 'rgba(30, 41, 59, 0.9)',
               borderRadius: '8px',
-              padding: '6px 14px',
+              padding: '6px 12px',
               border: potPulse ? '2px solid #22c55e' : '2px solid #334155',
               boxShadow: potPulse ? '0 0 20px rgba(34, 197, 94, 0.5)' : 'none',
               transition: 'all 0.3s ease',
@@ -1539,7 +1657,7 @@ export function GameBoard() {
 
               {/* BIG DRAMATIC BUTTONS */}
               {isDecisionPhase && !humanDecided && (
-                <div style={{ display: 'flex', gap: '30px' }}>
+                <div className="hold-drop-buttons" style={{ display: 'flex', gap: '30px' }}>
                   <button
                     onClick={() => {
                       playHold();
@@ -1859,11 +1977,52 @@ export function GameBoard() {
           0%, 100% { opacity: 0.7; }
           50% { opacity: 1; }
         }
+        @keyframes menu-slide-down {
+          0% { opacity: 0; transform: translateY(-10px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
         @media (max-width: 768px) {
           .hold-drop-btn {
             padding: 20px 40px !important;
             font-size: 24px !important;
             min-width: 140px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          /* iPhone Pro Max and smaller */
+          .game-header {
+            padding: 4px !important;
+            gap: 4px !important;
+          }
+          .game-header button {
+            padding: 4px 8px !important;
+            font-size: 12px !important;
+          }
+          .header-token-display {
+            padding: 4px 8px !important;
+            font-size: 12px !important;
+          }
+          .header-pot-display {
+            display: none !important;
+          }
+          .header-ante-display {
+            display: none !important;
+          }
+          .shop-text {
+            display: none !important;
+          }
+          .hold-drop-buttons {
+            gap: 16px !important;
+          }
+          .hold-drop-buttons button {
+            padding: 18px 36px !important;
+            font-size: 22px !important;
+          }
+          .human-card-area {
+            padding: 10px 16px !important;
+          }
+          .player-cards {
+            gap: 6px !important;
           }
         }
       `}</style>

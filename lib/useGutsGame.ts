@@ -331,6 +331,14 @@ export function useGutsGame() {
     setTimeout(() => startRound(), 100);
   }, [startRound, playerCount, state.players]);
 
+  const resetToStart = useCallback(() => {
+    setState({
+      ...initialState,
+      players: createInitialPlayers(playerCount, []),
+      gamePhase: 'start',
+    });
+  }, [playerCount]);
+
   const makeHumanDecision = useCallback(
     (decision: Decision) => {
       if (state.gamePhase !== 'decision' || !decision) {
@@ -840,6 +848,7 @@ export function useGutsGame() {
     humanPlayer,
     activePlayers,
     startGame,
+    resetToStart,
     makeHumanDecision,
     nextRound,
     playerCount,
