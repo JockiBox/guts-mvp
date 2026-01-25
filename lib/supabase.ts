@@ -69,9 +69,15 @@ export async function signUp(email: string, password: string, username: string) 
 
   if (error) throw error;
 
-  // Create user profile
+  // Create user profile if trigger didn't already create one
+  // Use upsert to avoid conflicts if trigger already created the profile
   if (data.user) {
-    await createUserProfile(data.user.id, email, username);
+    try {
+      await createUserProfile(data.user.id, email, username);
+    } catch (profileError) {
+      // Profile might already exist from database trigger, that's OK
+      console.log('Profile may already exist:', profileError);
+    }
   }
 
   return data;
@@ -110,7 +116,8 @@ export async function getCurrentSession() {
 
 // Profile helpers
 export async function createUserProfile(userId: string, email: string, username: string) {
-  const { error } = await supabase.from('profiles').insert({
+  // Use upsert to handle case where trigger already created the profile
+  const { error } = await supabase.from('profiles').upsert({
     id: userId,
     email,
     username,
@@ -126,7 +133,7 @@ export async function createUserProfile(userId: string, email: string, username:
     unlocked_avatars: ['😎', '🎮', '🃏', '🎰'],
     unlocked_themes: ['default'],
     unlocked_effects: [],
-  });
+  }, { onConflict: 'id' });
 
   if (error) throw error;
 }
