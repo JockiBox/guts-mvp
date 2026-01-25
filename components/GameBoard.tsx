@@ -332,8 +332,9 @@ export function GameBoard() {
       const result = await modifyGameTokens(user.id, amount);
       console.log('[TOKENS] Database result:', result);
       if (result.success) {
-        // Refresh user profile to get updated tokens
-        fetchProfile();
+        // MUST await fetchProfile to ensure UI updates with fresh data
+        await fetchProfile();
+        console.log('[TOKENS] Profile refreshed after adding tokens');
       }
     } else {
       // Guest: update localStorage + local state
@@ -353,8 +354,9 @@ export function GameBoard() {
       const result = await modifyGameTokens(user.id, -amount);
       console.log('[TOKENS] Database result:', result);
       if (result.success) {
-        // Refresh user profile to get updated tokens
-        fetchProfile();
+        // MUST await fetchProfile to ensure UI updates with fresh data
+        await fetchProfile();
+        console.log('[TOKENS] Profile refreshed after deducting tokens');
       }
     } else {
       // Guest: update localStorage + local state

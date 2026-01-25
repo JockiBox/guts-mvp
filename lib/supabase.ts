@@ -203,18 +203,20 @@ export async function modifyGameTokens(userId: string, change: number): Promise<
   const newBalance = Math.max(0, profile.tokens + change);
   console.log('[SUPABASE] Updating tokens:', { currentTokens: profile.tokens, change, newBalance });
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .update({ tokens: newBalance })
-    .eq('id', userId);
+    .eq('id', userId)
+    .select('tokens')
+    .single();
 
   if (error) {
     console.error('[SUPABASE] Error updating tokens:', error);
     return { success: false, newBalance: profile.tokens };
   }
 
-  console.log('[SUPABASE] Tokens updated successfully');
-  return { success: true, newBalance };
+  console.log('[SUPABASE] Tokens updated successfully, DB returned:', data);
+  return { success: true, newBalance: data?.tokens ?? newBalance };
 }
 
 export async function spendTokens(userId: string, amount: number): Promise<boolean> {

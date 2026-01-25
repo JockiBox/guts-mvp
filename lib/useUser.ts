@@ -18,10 +18,13 @@ export function useUser() {
 
   // Fetch user profile
   const fetchProfile = useCallback(async () => {
+    console.log('[FETCH_PROFILE] Starting profile fetch...');
     try {
       const authUser = await getCurrentUser();
+      console.log('[FETCH_PROFILE] Auth user:', authUser?.id);
       if (authUser) {
         const profile = await getUserProfile(authUser.id);
+        console.log('[FETCH_PROFILE] Profile fetched, tokens:', profile?.tokens);
         setUser(profile);
 
         // Check if daily reward can be claimed
@@ -33,15 +36,17 @@ export function useUser() {
           setCanClaimDaily(true);
         }
       } else {
+        console.log('[FETCH_PROFILE] No auth user found');
         setUser(null);
         setCanClaimDaily(false);
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('[FETCH_PROFILE] Error fetching profile:', error);
       setUser(null);
     } finally {
       setLoading(false);
     }
+    console.log('[FETCH_PROFILE] Profile fetch complete');
   }, []);
 
   // Listen for auth changes
