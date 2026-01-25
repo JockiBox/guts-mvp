@@ -9,7 +9,7 @@ import { AuthModal } from './AuthModal';
 import { ShopModal } from './ShopModal';
 import { ProfileModal } from './ProfileModal';
 import { getHandDescription, getHandValue } from '@/lib/useGutsGame';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useUser } from '@/lib/useUser';
 import { recordGameResult } from '@/lib/supabase';
 import {
@@ -31,6 +31,39 @@ import {
 import { type Achievement } from '@/lib/stats';
 import { shareResult, downloadResultCard, type ShareData } from '@/lib/share';
 import { getGuestTokens, setGuestTokens, addGuestTokens, deductGuestTokens } from '@/lib/guestTokens';
+
+// New enhancement imports
+import { VisualEffects, EmoteButtons, FloatingEmote } from './VisualEffects';
+import { PowerUpsBar, PowerUpShop } from './PowerUpsBar';
+import { DailyChallengesModal, DailyChallengeBadge } from './DailyChallenges';
+import { AchievementsPanel, AchievementUnlockNotification } from './AchievementsPanel';
+import { ThemeSelector } from './ThemeSelector';
+import { SideBetsPanel, SideBetResults } from './SideBetsPanel';
+import { TableTheme, loadCurrentTheme, checkThemeUnlocks } from '@/lib/themes';
+import { PowerUpType, purchasePowerUp, loadPowerUpInventory } from '@/lib/powerups';
+import {
+  loadAchievements,
+  recordWin as recordAchievementWin,
+  recordLoss as recordAchievementLoss,
+  recordHeart as recordAchievementHeart,
+  checkAndUnlockAchievements,
+  Achievement as GameAchievement,
+} from '@/lib/achievements';
+import {
+  loadDailyChallenges,
+  updateChallengeProgress,
+  DailyProgress,
+  Challenge,
+} from '@/lib/dailyChallenges';
+import {
+  ActiveSideBets,
+  SideBet,
+  SideBetResult,
+  placeSideBet,
+  resolveSideBets,
+  getEmptyBets,
+} from '@/lib/sideBets';
+import { generateRivalryTaunt } from '@/lib/botRivalries';
 
 // Particle component for celebrations
 function Particles({ active, type }: { active: boolean; type: 'win' | 'sixnine' | 'lose' }) {
@@ -155,8 +188,39 @@ export function GameBoard() {
   const [showShopModal, setShowShopModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
+  // New feature modal states
+  const [showPowerUpShop, setShowPowerUpShop] = useState(false);
+  const [showDailyChallenges, setShowDailyChallenges] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
+  const [showThemeSelector, setShowThemeSelector] = useState(false);
+  const [showSideBets, setShowSideBets] = useState(false);
+  const [showSideBetResults, setSideBetResults] = useState<SideBetResult[] | null>(null);
+
+  // Theme state
+  const [currentTheme, setCurrentTheme] = useState<TableTheme | null>(null);
+
+  // Power-ups state
+  const [activePowerUps, setActivePowerUps] = useState<PowerUpType[]>([]);
+
+  // Achievements state
+  const [gameAchievementPopup, setGameAchievementPopup] = useState<GameAchievement | null>(null);
+
+  // Daily challenges state
+  const [dailyProgress, setDailyProgress] = useState<DailyProgress | null>(null);
+  const [completedChallenge, setCompletedChallenge] = useState<Challenge | null>(null);
+
+  // Side bets state
+  const [activeSideBets, setActiveSideBets] = useState<ActiveSideBets>(getEmptyBets());
+
+  // Emote state
+  const [floatingEmote, setFloatingEmote] = useState<{ emote: string; playerName: string } | null>(null);
+
+  // Bot rivalry messages
+  const [rivalryMessage, setRivalryMessage] = useState<{ from: string; to: string; message: string } | null>(null);
+
   // UI states
   const [shake, setShake] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
   const [showParticles, setShowParticles] = useState<'win' | 'sixnine' | 'lose' | null>(null);
   const [flashColor, setFlashColor] = useState<string | null>(null);
   const [sixNineReveal, setSixNineReveal] = useState<{ name: string; cards: string[] } | null>(null);
@@ -176,6 +240,231 @@ export function GameBoard() {
   const revealSoundPlayed = useRef(false);
   const gameResultRecorded = useRef(false);
   const lastPot = useRef(0);
+  const achievementCheckDone = useRef(false);
+
+  // Initialize theme, daily challenges, and achievements on mount
+  useEffect(() => {
+    setCurrentTheme(loadCurrentTheme());
+    setDailyProgress(loadDailyChallenges());
+  }, []);
+
+  // Handle emote from player
+  const handleEmote = useCallback((emote: string) => {
+    setFloatingEmote({ emote, playerName: user?.username || 'You' });
+    playClick();
+  }, [user]);
+
+  // Handle power-up use
+  const handleUsePowerUp = useCallback((type: PowerUpType) => {
+    if (activePowerUps.includes(type)) return;
+    setActivePowerUps((prev) => [...prev, type]);
+    playClick();
+    // Power-up effects would be implemented in game logic
+  }, [activePowerUps]);
+
+  // Handle side bet placement
+  const handlePlaceSideBet = useCallback((bet: SideBet) => {
+    const displayTokens = user?.tokens ?? getGuestTokens();
+    const result = placeSideBet(activeSideBets, bet, displayTokens);
+    if (result.success) {
+      setActiveSideBets(result.updatedBets);
+      // Deduct tokens
+      if (user) {
+        // For logged in users, would need to sync with backend
+      } else {
+        deductGuestTokens(bet.amount);
+      }
+      return { success: true };
+    }
+    return { success: false, error: result.error };
+  }, [activeSideBets, user]);
+
+  // Handle theme change
+  const handleThemeChange = useCallback((theme: TableTheme) => {
+    setCurrentTheme(theme);
+  }, []);
+
+  // Handle theme purchase
+  const handleThemePurchase = useCallback((cost: number) => {
+    if (user) {
+      // Would need backend integration
+      return true;
+    } else {
+      const tokens = getGuestTokens();
+      if (tokens >= cost) {
+        deductGuestTokens(cost);
+        return true;
+      }
+    }
+    return false;
+  }, [user]);
+
+  // Handle power-up purchase
+  const handlePowerUpPurchase = useCallback((type: PowerUpType, cost: number) => {
+    if (user) {
+      // Would need backend integration
+    } else {
+      const tokens = getGuestTokens();
+      if (tokens >= cost) {
+        const result = purchasePowerUp(type, tokens);
+        if (result.success) {
+          // Tokens already deducted in purchasePowerUp
+        }
+      }
+    }
+    playTokens();
+  }, [user]);
+
+  // Handle daily challenge reward claim
+  const handleChallengeReward = useCallback((reward: number) => {
+    if (user) {
+      // Would need backend integration
+    } else {
+      addGuestTokens(reward);
+    }
+    playTokens();
+  }, [user]);
+
+  // Generate bot rivalry messages occasionally
+  useEffect(() => {
+    if (gamePhase === 'decision' && players.length > 2) {
+      const aiPlayers = players.filter((p) => !p.isHuman && p.isActive);
+      if (aiPlayers.length >= 2 && Math.random() < 0.3) {
+        const taunt = generateRivalryTaunt(aiPlayers);
+        if (taunt) {
+          setRivalryMessage(taunt);
+          setTimeout(() => setRivalryMessage(null), 3000);
+        }
+      }
+    }
+  }, [gamePhase, players]);
+
+  // Reset side bets and power-ups at start of each round
+  useEffect(() => {
+    if (gamePhase === 'decision') {
+      setActiveSideBets(getEmptyBets());
+      setActivePowerUps([]);
+      achievementCheckDone.current = false;
+    }
+  }, [gamePhase]);
+
+  // Track wins/losses for achievements and daily challenges
+  useEffect(() => {
+    if (gamePhase === 'summary' && humanPlayer && !achievementCheckDone.current) {
+      achievementCheckDone.current = true;
+      const won = winners.includes(humanPlayer.id);
+      const lost = losers.includes(humanPlayer.id);
+      const held = humanPlayer.decision === 'hold';
+      const wasPair = humanPlayer.cards.length === 2 && humanPlayer.cards[0].rank === humanPlayer.cards[1].rank;
+      const beatGhost = won && ghostHands.length > 0;
+      const handValue = getHandValue(humanPlayer.cards);
+
+      // Update achievements
+      let achievements = loadAchievements();
+      if (won) {
+        achievements = recordAchievementWin(achievements, wasPair, beatGhost, handValue, pot);
+        // Check for new achievements
+        const { newAchievements, totalReward } = checkAndUnlockAchievements(achievements);
+        if (newAchievements.length > 0) {
+          setGameAchievementPopup(newAchievements[0]);
+          if (totalReward > 0) {
+            if (user) {
+              // Backend integration needed
+            } else {
+              addGuestTokens(totalReward);
+            }
+          }
+        }
+        // Check theme unlocks
+        checkThemeUnlocks(achievements.totalWins, achievements.unlocked);
+      } else if (lost) {
+        achievements = recordAchievementLoss(achievements);
+      }
+
+      // Update daily challenges
+      if (dailyProgress) {
+        let updatedProgress = dailyProgress;
+        // Track games played
+        const gamesResult = updateChallengeProgress(updatedProgress, 'games', 1);
+        updatedProgress = gamesResult.updated;
+
+        // Track holds
+        if (held) {
+          const holdsResult = updateChallengeProgress(updatedProgress, 'holds', 1);
+          updatedProgress = holdsResult.updated;
+        }
+
+        // Track wins
+        if (won) {
+          const winsResult = updateChallengeProgress(updatedProgress, 'wins', 1);
+          updatedProgress = winsResult.updated;
+          if (winsResult.newlyCompleted.length > 0) {
+            setCompletedChallenge(winsResult.newlyCompleted[0]);
+            setTimeout(() => setCompletedChallenge(null), 3000);
+          }
+
+          // Track pairs
+          if (wasPair) {
+            const pairsResult = updateChallengeProgress(updatedProgress, 'pairs', 1);
+            updatedProgress = pairsResult.updated;
+          }
+
+          // Track ghosts
+          if (beatGhost) {
+            const ghostsResult = updateChallengeProgress(updatedProgress, 'ghosts', 1);
+            updatedProgress = ghostsResult.updated;
+          }
+
+          // Track streak
+          if (winStreak >= 1) {
+            const streakResult = updateChallengeProgress(updatedProgress, 'streak', 1);
+            updatedProgress = streakResult.updated;
+          }
+        }
+
+        setDailyProgress(updatedProgress);
+      }
+
+      // Resolve side bets
+      if (activeSideBets.bets.length > 0) {
+        const ghostWon = winners.some((id) => id.startsWith('ghost'));
+        const ghostAppeared = ghostHands.length > 0;
+        const allHeld = players.every((p) => p.decision === 'hold' || !p.isActive);
+        const winningPlayer = players.find((p) => winners.includes(p.id));
+        const winningHandIsPair =
+          winningPlayer?.cards.length === 2 &&
+          winningPlayer.cards[0].rank === winningPlayer.cards[1].rank;
+
+        const results = resolveSideBets(activeSideBets, {
+          ghostWon,
+          ghostAppeared,
+          allHeld,
+          winningHandIsPair,
+          winnerId: winningPlayer?.id,
+        });
+
+        // Calculate winnings
+        const totalWinnings = results.reduce((sum, r) => sum + r.payout, 0);
+        if (totalWinnings > 0) {
+          if (user) {
+            // Backend integration
+          } else {
+            addGuestTokens(totalWinnings);
+          }
+        }
+
+        // Show results
+        if (results.length > 0) {
+          setSideBetResults(results);
+        }
+      }
+
+      // Show confetti on win
+      if (won) {
+        setShowConfetti(true);
+      }
+    }
+  }, [gamePhase, humanPlayer, winners, losers, ghostHands, pot, user, dailyProgress, activeSideBets, winStreak, players]);
 
   // Sync user/guest tokens with game state
   useEffect(() => {
@@ -574,7 +863,7 @@ export function GameBoard() {
       style={{
         height: '100vh',
         width: '100vw',
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+        background: currentTheme?.background || 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
         padding: '8px',
         display: 'flex',
         flexDirection: 'column',
@@ -582,6 +871,7 @@ export function GameBoard() {
         boxSizing: 'border-box',
         animation: shake ? 'shake 0.5s ease-in-out' : 'none',
         position: 'relative',
+        transition: 'background 0.5s ease',
       }}
     >
       {/* Screen flash overlay */}
@@ -648,6 +938,83 @@ export function GameBoard() {
             😬 {closeCallMessage}
           </span>
         </div>
+      )}
+
+      {/* New Visual Effects */}
+      <VisualEffects
+        showConfetti={showConfetti}
+        showScreenShake={shake}
+        streakFire={winStreak}
+        onConfettiComplete={() => setShowConfetti(false)}
+      />
+
+      {/* Floating Emote */}
+      {floatingEmote && (
+        <FloatingEmote
+          emote={floatingEmote.emote}
+          playerName={floatingEmote.playerName}
+          onComplete={() => setFloatingEmote(null)}
+        />
+      )}
+
+      {/* Bot Rivalry Message */}
+      {rivalryMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(30, 41, 59, 0.95)',
+            borderRadius: '16px',
+            padding: '16px 24px',
+            border: '2px solid #f59e0b',
+            zIndex: 200,
+            maxWidth: '300px',
+            textAlign: 'center',
+            animation: 'fade-in 0.3s ease-out',
+          }}
+        >
+          <div style={{ color: '#f59e0b', fontSize: '12px', marginBottom: '4px' }}>
+            {rivalryMessage.from} → {rivalryMessage.to}
+          </div>
+          <div style={{ color: '#e2e8f0', fontSize: '14px', fontStyle: 'italic' }}>
+            &quot;{rivalryMessage.message}&quot;
+          </div>
+        </div>
+      )}
+
+      {/* Completed Challenge Toast */}
+      {completedChallenge && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '120px',
+            right: '20px',
+            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95))',
+            borderRadius: '12px',
+            padding: '12px 20px',
+            zIndex: 400,
+            animation: 'slide-in-right 0.4s ease-out',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+          }}
+        >
+          <span style={{ fontSize: '24px' }}>{completedChallenge.icon}</span>
+          <div>
+            <div style={{ color: 'white', fontWeight: 'bold', fontSize: '14px' }}>Challenge Complete!</div>
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>{completedChallenge.name}</div>
+          </div>
+        </div>
+      )}
+
+      {/* New Achievement Popup */}
+      {gameAchievementPopup && (
+        <AchievementUnlockNotification
+          achievement={gameAchievementPopup}
+          onClose={() => setGameAchievementPopup(null)}
+        />
       )}
 
       {/* Particles */}
@@ -954,6 +1321,41 @@ export function GameBoard() {
           >
             🛒 <span className="shop-text">Shop</span>
           </button>
+
+          {/* Daily Challenges */}
+          <DailyChallengeBadge onClick={() => { playClick(); setShowDailyChallenges(true); }} />
+
+          {/* Achievements */}
+          <button
+            onClick={() => { playClick(); setShowAchievements(true); }}
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              border: '2px solid #334155',
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+            title="Achievements"
+          >
+            🏆
+          </button>
+
+          {/* Theme Selector */}
+          <button
+            onClick={() => { playClick(); setShowThemeSelector(true); }}
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              border: '2px solid #334155',
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+            title="Table Themes"
+          >
+            🎨
+          </button>
         </div>
 
         {/* User Token Display & Auth */}
@@ -1114,7 +1516,7 @@ export function GameBoard() {
           minHeight: '400px',
         }}
       >
-        {/* Poker table felt */}
+        {/* Poker table felt - uses current theme */}
         <div
           style={{
             position: 'absolute',
@@ -1123,10 +1525,17 @@ export function GameBoard() {
             transform: 'translate(-50%, -50%)',
             width: '70%',
             height: '60%',
-            background: 'radial-gradient(ellipse at center, rgba(20, 184, 166, 0.15) 0%, rgba(15, 23, 42, 0.8) 70%)',
+            background: currentTheme
+              ? `radial-gradient(ellipse at center, ${currentTheme.tableColor} 0%, rgba(15, 23, 42, 0.8) 70%)`
+              : 'radial-gradient(ellipse at center, rgba(20, 184, 166, 0.15) 0%, rgba(15, 23, 42, 0.8) 70%)',
             borderRadius: '50%',
-            border: '3px solid rgba(20, 184, 166, 0.3)',
-            boxShadow: 'inset 0 0 60px rgba(20, 184, 166, 0.1), 0 0 30px rgba(0, 0, 0, 0.5)',
+            border: currentTheme
+              ? `3px solid ${currentTheme.accentColor}40`
+              : '3px solid rgba(20, 184, 166, 0.3)',
+            boxShadow: currentTheme
+              ? `inset 0 0 60px ${currentTheme.accentColor}10, 0 0 30px rgba(0, 0, 0, 0.5)`
+              : 'inset 0 0 60px rgba(20, 184, 166, 0.1), 0 0 30px rgba(0, 0, 0, 0.5)',
+            transition: 'all 0.5s ease',
           }}
         />
 
@@ -1655,6 +2064,47 @@ export function GameBoard() {
                 </div>
               </div>
 
+              {/* Power-ups and Side Bets Bar */}
+              {isDecisionPhase && !humanDecided && (
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'flex-start' }}>
+                  {/* Power-ups */}
+                  <PowerUpsBar
+                    onUsePowerUp={handleUsePowerUp}
+                    canUsePowerUps={true}
+                    activePowerUps={activePowerUps}
+                  />
+
+                  {/* Side Bets Button */}
+                  <button
+                    onClick={() => { playClick(); setShowSideBets(true); }}
+                    style={{
+                      background: activeSideBets.bets.length > 0
+                        ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(217, 119, 6, 0.3))'
+                        : 'rgba(30, 41, 59, 0.9)',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      border: activeSideBets.bets.length > 0 ? '2px solid #f59e0b' : '2px solid #334155',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span style={{ fontSize: '20px' }}>🎲</span>
+                    <span style={{ color: '#e2e8f0', fontSize: '11px', fontWeight: 'bold' }}>Side Bets</span>
+                    {activeSideBets.bets.length > 0 && (
+                      <span style={{ color: '#f59e0b', fontSize: '10px' }}>
+                        {activeSideBets.bets.length}/2
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Emote Buttons */}
+                  <EmoteButtons onEmote={handleEmote} />
+                </div>
+              )}
+
               {/* BIG DRAMATIC BUTTONS */}
               {isDecisionPhase && !humanDecided && (
                 <div className="hold-drop-buttons" style={{ display: 'flex', gap: '30px' }}>
@@ -1829,6 +2279,69 @@ export function GameBoard() {
         />
       )}
 
+      {/* New Feature Modals */}
+
+      {/* Power-up Shop */}
+      {showPowerUpShop && (
+        <PowerUpShop
+          playerTokens={user?.tokens ?? getGuestTokens()}
+          onPurchase={handlePowerUpPurchase}
+          onClose={() => setShowPowerUpShop(false)}
+        />
+      )}
+
+      {/* Daily Challenges */}
+      {showDailyChallenges && (
+        <DailyChallengesModal
+          onClaimReward={handleChallengeReward}
+          onClose={() => setShowDailyChallenges(false)}
+        />
+      )}
+
+      {/* Achievements Panel */}
+      {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
+
+      {/* Theme Selector */}
+      {showThemeSelector && (
+        <ThemeSelector
+          onThemeChange={handleThemeChange}
+          playerTokens={user?.tokens ?? getGuestTokens()}
+          totalWins={loadAchievements().totalWins}
+          unlockedAchievements={loadAchievements().unlocked}
+          onPurchase={handleThemePurchase}
+          onClose={() => setShowThemeSelector(false)}
+        />
+      )}
+
+      {/* Side Bets Panel */}
+      {showSideBets && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '200px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 500,
+          }}
+        >
+          <SideBetsPanel
+            playerTokens={user?.tokens ?? getGuestTokens()}
+            currentBets={activeSideBets}
+            canPlaceBets={isDecisionPhase && !humanDecided}
+            onPlaceBet={handlePlaceSideBet}
+            onClose={() => setShowSideBets(false)}
+          />
+        </div>
+      )}
+
+      {/* Side Bet Results */}
+      {showSideBetResults && (
+        <SideBetResults
+          results={showSideBetResults}
+          onClose={() => setSideBetResults(null)}
+        />
+      )}
+
       {/* All animations */}
       <style jsx global>{`
         @keyframes shake {
@@ -1980,6 +2493,27 @@ export function GameBoard() {
         @keyframes menu-slide-down {
           0% { opacity: 0; transform: translateY(-10px); }
           100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slide-in-right {
+          0% { transform: translateX(100px); opacity: 0; }
+          100% { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes challenge-complete {
+          0% { transform: scale(0.8); opacity: 0; }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes power-up-activate {
+          0% { transform: scale(1); box-shadow: 0 0 0 rgba(20, 184, 166, 0); }
+          50% { transform: scale(1.2); box-shadow: 0 0 30px rgba(20, 184, 166, 0.8); }
+          100% { transform: scale(1); box-shadow: 0 0 0 rgba(20, 184, 166, 0); }
+        }
+        @keyframes side-bet-win {
+          0% { transform: scale(1); }
+          25% { transform: scale(1.1) rotate(-5deg); }
+          50% { transform: scale(1.1) rotate(5deg); }
+          75% { transform: scale(1.1) rotate(-5deg); }
+          100% { transform: scale(1) rotate(0); }
         }
         @media (max-width: 768px) {
           .hold-drop-btn {
