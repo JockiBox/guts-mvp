@@ -1,0 +1,10 @@
+# https://www.gutsthegame.com robots.txt
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://www.gutsthegame.com/sitemap.xml
+
+# Block API routes from crawling
+Disallow: /api/

@@ -1,12 +1,18 @@
 import type { Metadata, Viewport } from 'next';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import './globals.css';
 import { InstallPrompt } from '@/components/InstallPrompt';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.gutsthegame.com'),
   title: 'GUTS - The Card Game',
   description: 'Play GUTS - the ultimate high-stakes card game. Hold or drop, beat the ghost!',
   manifest: '/manifest.json',
   applicationName: 'GUTS',
+  keywords: ['card game', 'poker', 'casino', 'guts', 'gambling', 'free games', 'online game'],
+  authors: [{ name: 'GUTS Game' }],
+  creator: 'GUTS Game',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -19,16 +25,25 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'GUTS - The Card Game',
     description: 'Play GUTS - the ultimate high-stakes card game. Hold or drop, beat the ghost!',
-    url: 'https://gutsthegame.com',
+    url: 'https://www.gutsthegame.com',
     siteName: 'GUTS',
     type: 'website',
-    images: ['/icons/icon-512x512.png'],
+    locale: 'en_US',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'GUTS - The Ultimate Card Game',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'GUTS - The Card Game',
-    description: 'Play GUTS - the ultimate high-stakes card game',
-    images: ['/icons/icon-512x512.png'],
+    description: 'Play GUTS - the ultimate high-stakes card game. Hold or drop, beat the ghost!',
+    images: ['/twitter-image.png'],
+    creator: '@gutsthegame',
   },
   icons: {
     icon: [
@@ -40,6 +55,17 @@ export const metadata: Metadata = {
       { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
     shortcut: '/favicon-32x32.png',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
   other: {
     'mobile-web-app-capable': 'yes',
@@ -66,10 +92,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="GUTS" />
+        <link rel="canonical" href="https://www.gutsthegame.com" />
       </head>
       <body className="antialiased min-h-screen">
         {children}
         <InstallPrompt />
+        <Analytics />
+        <SpeedInsights />
         <script
           dangerouslySetInnerHTML={{
             __html: `
