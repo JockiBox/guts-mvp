@@ -593,10 +593,10 @@ export function GameBoard() {
       if (user) {
         setHumanTokens(user.tokens);
       } else {
-        setHumanTokens(getGuestTokens());
+        setHumanTokens(localTokens);
       }
     }
-  }, [user, setHumanTokens]);
+  }, [user, localTokens, setHumanTokens]);
 
   // Animate pot changes
   useEffect(() => {
