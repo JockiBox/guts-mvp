@@ -129,7 +129,7 @@ function calculateAIDecision(player: Player, difficulty: Difficulty): Decision {
   const accuracyRoll = Math.random();
   const makeMistake = accuracyRoll > config.aiAccuracy;
 
-  let holdProbability = 0.05; // Default: almost never hold garbage
+  let holdProbability = 0.02; // Default: almost never hold garbage
 
   // STRATEGIC AI - Only hold strong hands!
   // Hand value formula: max(val) * 15 + min(val)
@@ -137,7 +137,7 @@ function calculateAIDecision(player: Player, difficulty: Difficulty): Decision {
   // A-x: 212-223 (Ace + anything from 2 to K)
   // K-x: 197-207 (King + anything)
   // Q-x: 182-191 | J-x: 167-175 | 10-x: 152-159
-  // Lower hands: below 152
+  // Lower hands: below 152 (NO FACE CARDS = GARBAGE)
 
   if (handValue >= 2000) {
     // 6-9 - THE NUTS - always hold
@@ -147,22 +147,29 @@ function calculateAIDecision(player: Player, difficulty: Difficulty): Decision {
     holdProbability = 0.95;
   } else if (handValue >= 212) {
     // Ace + anything - strong, usually hold
-    holdProbability = 0.85;
+    holdProbability = 0.80;
   } else if (handValue >= 204) {
     // King + 9 or better (K-9, K-10, K-J, K-Q) - decent
-    holdProbability = 0.60;
+    holdProbability = 0.55;
   } else if (handValue >= 197) {
     // King + low card (K-2 through K-8) - marginal
-    holdProbability = 0.30;
+    holdProbability = 0.25;
   } else if (handValue >= 182) {
-    // Queen high - weak, rarely hold
-    holdProbability = 0.12;
-  } else {
-    // Jack high or worse - garbage, almost never hold
+    // Queen high - weak
+    holdProbability = 0.10;
+  } else if (handValue >= 167) {
+    // Jack high - very weak
     holdProbability = 0.05;
-    // Small bluff chance
-    if (Math.random() < config.aiBluffChance) {
-      holdProbability = 0.18;
+  } else if (handValue >= 152) {
+    // 10 high - garbage (no face cards!)
+    holdProbability = 0.02;
+  } else {
+    // 9 high or worse - complete trash, never hold
+    // Only way to get here: no face cards, no pair, no 6-9
+    holdProbability = 0.01;
+    // Tiny bluff chance for chaos
+    if (Math.random() < config.aiBluffChance * 0.5) {
+      holdProbability = 0.08;
     }
   }
 
