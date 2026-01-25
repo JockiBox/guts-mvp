@@ -42,6 +42,11 @@ const CATEGORIES: { type: AvatarPartType; label: string; icon: string }[] = [
   { type: 'outfit', label: 'Outfits', icon: '👔' },
   { type: 'background', label: 'Backgrounds', icon: '🌈' },
   { type: 'frame', label: 'Frames', icon: '🖼️' },
+  { type: 'cardStyle', label: 'Card Glow', icon: '✨' },
+  { type: 'cardBack', label: 'Card Backs', icon: '🎴' },
+  { type: 'effect', label: 'Effects', icon: '🔥' },
+  { type: 'emote', label: 'Emotes', icon: '😄' },
+  { type: 'entrance', label: 'Entrance', icon: '⚡' },
 ];
 
 export function AvatarStore({
@@ -76,6 +81,11 @@ export function AvatarStore({
       case 'outfit': newAvatar.outfit = item.id; break;
       case 'background': newAvatar.background = item.id; break;
       case 'frame': newAvatar.frame = item.id; break;
+      case 'cardStyle': newAvatar.cardStyle = item.id; break;
+      case 'cardBack': newAvatar.cardBack = item.id; break;
+      case 'effect': newAvatar.effect = item.id; break;
+      case 'emote': newAvatar.emote = item.id; break;
+      case 'entrance': newAvatar.entrance = item.id; break;
     }
     setPreviewAvatar(newAvatar);
   };
@@ -102,6 +112,11 @@ export function AvatarStore({
       previewAvatar.outfit,
       previewAvatar.background,
       previewAvatar.frame,
+      previewAvatar.cardStyle,
+      previewAvatar.cardBack,
+      previewAvatar.effect,
+      previewAvatar.emote,
+      previewAvatar.entrance,
     ].filter(Boolean) as string[];
 
     const allOwned = partsToCheck.every(id => ownedItems.includes(id) || getItemById(id)?.isDefault);
@@ -129,6 +144,11 @@ export function AvatarStore({
       case 'outfit': return previewAvatar.outfit === item.id;
       case 'background': return previewAvatar.background === item.id;
       case 'frame': return previewAvatar.frame === item.id;
+      case 'cardStyle': return previewAvatar.cardStyle === item.id;
+      case 'cardBack': return previewAvatar.cardBack === item.id;
+      case 'effect': return previewAvatar.effect === item.id;
+      case 'emote': return previewAvatar.emote === item.id;
+      case 'entrance': return previewAvatar.entrance === item.id;
       default: return false;
     }
   };

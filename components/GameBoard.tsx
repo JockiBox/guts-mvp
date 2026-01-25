@@ -408,29 +408,21 @@ export function GameBoard() {
   const handleMysteryBoxReward = useCallback((reward: MysteryBoxReward) => {
     if (reward.type === 'tokens' && reward.value) {
       const amount = typeof reward.value === 'number' ? reward.value : parseInt(reward.value, 10);
-      if (user) {
-        // Backend integration for logged-in users
-      } else {
-        addGuestTokens(amount);
-      }
+      addGuestTokens(amount); // Always add to local storage tokens
     }
     // Other reward types would unlock items in wallet
     setWallet(loadWallet());
     playWin();
-  }, [user]);
+  }, []);
 
   // Handle wheel spin reward
   const handleWheelReward = useCallback((reward: { type: string; value: number }) => {
     if (reward.type === 'tokens') {
-      if (user) {
-        // Backend integration for logged-in users
-      } else {
-        addGuestTokens(reward.value);
-      }
+      addGuestTokens(reward.value); // Always add to local storage tokens
     }
     setWheelState(loadWheelState());
     playTokens();
-  }, [user]);
+  }, []);
 
   // Handle game mode selection
   const handleGameModeSelect = useCallback((mode: GameMode) => {
@@ -701,16 +693,12 @@ export function GameBoard() {
         setActiveCombos(comboResult.combosTriggered);
         // Award combo bonuses
         if (comboResult.totalBonus > 0) {
-          if (user) {
-            // Backend integration for logged-in users
-          } else {
-            addGuestTokens(comboResult.totalBonus);
-          }
+          addGuestTokens(comboResult.totalBonus); // Always add to local storage tokens
         }
       }
 
-      // Check for lucky number bonus (for logged in users)
-      if (won && user) {
+      // Check for lucky number bonus (for all players)
+      if (won) {
         const luckyResult = checkLuckyNumber(humanPlayer.cards, won);
         if (luckyResult.bonus > 0) {
           addGuestTokens(luckyResult.bonus);
@@ -745,11 +733,7 @@ export function GameBoard() {
           if (revenge) {
             completeRevenge(bot.id);
             setRevengeMessage(`REVENGE on ${bot.name}! +${revenge.bounty} bonus!`);
-            if (user) {
-              // Backend integration for logged-in users
-            } else {
-              addGuestTokens(revenge.bounty);
-            }
+            addGuestTokens(revenge.bounty); // Always add to local storage tokens
             setTimeout(() => setRevengeMessage(null), 2000);
             setRevengeTarget(getTopRevengeTarget());
           }
@@ -762,12 +746,10 @@ export function GameBoard() {
         setGhostStory(story);
       }
 
-      // Check for mystery box (random chance each round for logged in users)
-      if (user) {
-        const mysteryBoxResult = checkForMysteryBox();
-        if (mysteryBoxResult.appears) {
-          setTimeout(() => setShowMysteryBox(true), 2000);
-        }
+      // Check for mystery box (random chance each round for all players)
+      const mysteryBoxResult = checkForMysteryBox();
+      if (mysteryBoxResult.appears) {
+        setTimeout(() => setShowMysteryBox(true), 2000);
       }
 
       // Check game mode unlocks

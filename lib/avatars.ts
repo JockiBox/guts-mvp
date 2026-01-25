@@ -10,7 +10,12 @@ export type AvatarPartType =
   | 'accessory'  // Necklaces, earrings, etc
   | 'outfit'     // Full body outfits
   | 'background' // Background effect
-  | 'frame';     // Frame around avatar
+  | 'frame'      // Frame around avatar
+  | 'cardStyle'  // Card appearance (glowing, holographic, etc.)
+  | 'cardBack'   // Card back design
+  | 'effect'     // Special visual effects
+  | 'emote'      // Emote animations
+  | 'entrance';  // Entrance animation when joining
 
 export interface AvatarItem {
   id: string;
@@ -36,6 +41,11 @@ export interface PlayerAvatar {
   outfit?: string;
   background?: string;
   frame?: string;
+  cardStyle?: string;   // Card appearance
+  cardBack?: string;    // Card back design
+  effect?: string;      // Special visual effects
+  emote?: string;       // Emote pack
+  entrance?: string;    // Entrance animation
   colors: Record<string, string>; // Part ID -> color
 }
 
@@ -203,6 +213,86 @@ export const AVATAR_ITEMS: AvatarItem[] = [
   { id: 'frame_galaxy', type: 'frame', name: 'Cosmic Ring', description: 'Star-studded edge', emoji: '🌌', cost: 600, rarity: 'epic' },
   { id: 'frame_ice', type: 'frame', name: 'Frozen Border', description: 'Ice cold killer', emoji: '❄️', cost: 400, rarity: 'epic' },
   { id: 'frame_animated', type: 'frame', name: 'Living Frame', description: 'Moves and breathes', emoji: '✨', cost: 900, rarity: 'legendary' },
+
+  // === CARD STYLES (Glowing cards, holographic, etc.) ===
+  { id: 'card_default', type: 'cardStyle', name: 'Classic Cards', description: 'Standard playing cards', emoji: '🃏', cost: 0, rarity: 'common', isDefault: true },
+  { id: 'card_glow_blue', type: 'cardStyle', name: 'Blue Glow', description: 'Cards glow electric blue', emoji: '💙', cost: 200, rarity: 'rare' },
+  { id: 'card_glow_gold', type: 'cardStyle', name: 'Golden Aura', description: 'Cards shimmer with gold', emoji: '✨', cost: 350, rarity: 'epic' },
+  { id: 'card_glow_purple', type: 'cardStyle', name: 'Mystic Purple', description: 'Arcane energy pulses', emoji: '💜', cost: 300, rarity: 'rare' },
+  { id: 'card_glow_green', type: 'cardStyle', name: 'Toxic Glow', description: 'Radioactive green aura', emoji: '💚', cost: 250, rarity: 'rare' },
+  { id: 'card_glow_red', type: 'cardStyle', name: 'Crimson Fire', description: 'Cards burn with passion', emoji: '❤️', cost: 300, rarity: 'rare' },
+  { id: 'card_glow_rainbow', type: 'cardStyle', name: 'Rainbow Pulse', description: 'Color-shifting aura', emoji: '🌈', cost: 600, rarity: 'legendary' },
+  { id: 'card_holographic', type: 'cardStyle', name: 'Holographic', description: 'Shimmering holo effect', emoji: '🌟', cost: 500, rarity: 'epic' },
+  { id: 'card_neon', type: 'cardStyle', name: 'Neon Edge', description: 'Glowing neon outlines', emoji: '💫', cost: 400, rarity: 'epic' },
+  { id: 'card_fire', type: 'cardStyle', name: 'Flaming Cards', description: 'Cards literally on fire', emoji: '🔥', cost: 550, rarity: 'epic' },
+  { id: 'card_ice', type: 'cardStyle', name: 'Frozen Cards', description: 'Encased in beautiful ice', emoji: '❄️', cost: 450, rarity: 'epic' },
+  { id: 'card_lightning', type: 'cardStyle', name: 'Lightning Strike', description: 'Crackling with electricity', emoji: '⚡', cost: 500, rarity: 'epic' },
+  { id: 'card_galaxy', type: 'cardStyle', name: 'Cosmic Cards', description: 'Swirling galaxies inside', emoji: '🌌', cost: 800, rarity: 'legendary' },
+  { id: 'card_diamond', type: 'cardStyle', name: 'Diamond Encrusted', description: 'Covered in gems', emoji: '💎', cost: 1000, rarity: 'legendary' },
+  { id: 'card_shadow', type: 'cardStyle', name: 'Shadow Cards', description: 'Dark smoke wisps around', emoji: '🖤', cost: 400, rarity: 'epic' },
+  { id: 'card_plasma', type: 'cardStyle', name: 'Plasma Core', description: 'Pulsing energy core', emoji: '🔮', cost: 650, rarity: 'legendary' },
+  { id: 'card_void', type: 'cardStyle', name: 'Void Walker', description: 'Cards bend reality', emoji: '🕳️', cost: 900, rarity: 'legendary' },
+  { id: 'card_sakura', type: 'cardStyle', name: 'Cherry Blossom', description: 'Petals fall from cards', emoji: '🌸', cost: 350, rarity: 'rare' },
+  { id: 'card_gold_plated', type: 'cardStyle', name: '24K Gold', description: 'Solid gold cards', emoji: '🏆', cost: 750, rarity: 'legendary' },
+  { id: 'card_matrix', type: 'cardStyle', name: 'Matrix Code', description: 'Digital rain overlay', emoji: '💻', cost: 450, rarity: 'epic' },
+
+  // === CARD BACKS ===
+  { id: 'back_default', type: 'cardBack', name: 'Classic Red', description: 'Traditional card back', emoji: '🎴', cost: 0, rarity: 'common', isDefault: true },
+  { id: 'back_dragon', type: 'cardBack', name: 'Dragon Design', description: 'Fierce dragon artwork', emoji: '🐉', cost: 300, rarity: 'rare' },
+  { id: 'back_skull', type: 'cardBack', name: 'Skull & Bones', description: 'Pirate themed', emoji: '💀', cost: 250, rarity: 'rare' },
+  { id: 'back_galaxy', type: 'cardBack', name: 'Deep Space', description: 'Cosmic pattern', emoji: '🌌', cost: 400, rarity: 'epic' },
+  { id: 'back_royal', type: 'cardBack', name: 'Royal Crest', description: 'Noble emblem', emoji: '👑', cost: 350, rarity: 'epic' },
+  { id: 'back_neon', type: 'cardBack', name: 'Neon Grid', description: 'Cyberpunk grid', emoji: '💜', cost: 300, rarity: 'rare' },
+  { id: 'back_fire', type: 'cardBack', name: 'Hellfire', description: 'Burning flames', emoji: '🔥', cost: 400, rarity: 'epic' },
+  { id: 'back_ice', type: 'cardBack', name: 'Frozen Tundra', description: 'Ice crystals', emoji: '❄️', cost: 350, rarity: 'epic' },
+  { id: 'back_money', type: 'cardBack', name: 'Money Stack', description: 'Show off wealth', emoji: '💵', cost: 500, rarity: 'epic' },
+  { id: 'back_diamond', type: 'cardBack', name: 'Diamond Pattern', description: 'Luxury design', emoji: '💎', cost: 600, rarity: 'legendary' },
+  { id: 'back_animated', type: 'cardBack', name: 'Living Art', description: 'Animated design', emoji: '✨', cost: 800, rarity: 'legendary' },
+  { id: 'back_custom', type: 'cardBack', name: 'Championship', description: 'Tournament winner', emoji: '🏆', cost: 1000, rarity: 'legendary' },
+
+  // === SPECIAL EFFECTS ===
+  { id: 'effect_none', type: 'effect', name: 'No Effect', description: 'Clean and simple', emoji: '❌', cost: 0, rarity: 'common', isDefault: true },
+  { id: 'effect_sparkle', type: 'effect', name: 'Sparkle Trail', description: 'Sparkles follow your moves', emoji: '✨', cost: 150, rarity: 'uncommon' },
+  { id: 'effect_fire_aura', type: 'effect', name: 'Fire Aura', description: 'Flames surround you', emoji: '🔥', cost: 400, rarity: 'epic' },
+  { id: 'effect_ice_aura', type: 'effect', name: 'Frost Aura', description: 'Icy mist surrounds you', emoji: '❄️', cost: 400, rarity: 'epic' },
+  { id: 'effect_lightning_aura', type: 'effect', name: 'Storm Aura', description: 'Electricity crackles', emoji: '⚡', cost: 450, rarity: 'epic' },
+  { id: 'effect_shadow_aura', type: 'effect', name: 'Shadow Tendrils', description: 'Dark wisps surround', emoji: '🖤', cost: 350, rarity: 'rare' },
+  { id: 'effect_rainbow_aura', type: 'effect', name: 'Prismatic Aura', description: 'Rainbow energy flows', emoji: '🌈', cost: 600, rarity: 'legendary' },
+  { id: 'effect_money_rain', type: 'effect', name: 'Money Rain', description: 'Coins fall around you', emoji: '💰', cost: 500, rarity: 'epic' },
+  { id: 'effect_confetti', type: 'effect', name: 'Confetti Blast', description: 'Party on every win', emoji: '🎉', cost: 200, rarity: 'uncommon' },
+  { id: 'effect_hearts', type: 'effect', name: 'Heart Shower', description: 'Love fills the air', emoji: '💕', cost: 200, rarity: 'uncommon' },
+  { id: 'effect_stars', type: 'effect', name: 'Stardust', description: 'Stars orbit around', emoji: '⭐', cost: 300, rarity: 'rare' },
+  { id: 'effect_galaxy', type: 'effect', name: 'Cosmic Swirl', description: 'Galaxies spin around', emoji: '🌌', cost: 700, rarity: 'legendary' },
+  { id: 'effect_skull_float', type: 'effect', name: 'Floating Skulls', description: 'Skulls orbit you', emoji: '💀', cost: 350, rarity: 'rare' },
+  { id: 'effect_cards_orbit', type: 'effect', name: 'Card Tornado', description: 'Cards spin around', emoji: '🃏', cost: 450, rarity: 'epic' },
+  { id: 'effect_phoenix', type: 'effect', name: 'Phoenix Wings', description: 'Fiery wings appear on wins', emoji: '🦅', cost: 800, rarity: 'legendary' },
+  { id: 'effect_dragon_roar', type: 'effect', name: 'Dragon Presence', description: 'Dragon appears on big wins', emoji: '🐉', cost: 900, rarity: 'legendary' },
+  { id: 'effect_glitch', type: 'effect', name: 'Glitch Effect', description: 'Reality distorts', emoji: '📺', cost: 400, rarity: 'epic' },
+  { id: 'effect_hologram', type: 'effect', name: 'Hologram Flicker', description: 'Digital projection', emoji: '💫', cost: 500, rarity: 'epic' },
+
+  // === EMOTE PACKS ===
+  { id: 'emote_default', type: 'emote', name: 'Basic Emotes', description: 'Standard reactions', emoji: '😊', cost: 0, rarity: 'common', isDefault: true },
+  { id: 'emote_fire', type: 'emote', name: 'Fire Pack', description: 'Flaming reactions', emoji: '🔥', cost: 150, rarity: 'uncommon' },
+  { id: 'emote_royal', type: 'emote', name: 'Royal Pack', description: 'Regal reactions', emoji: '👑', cost: 300, rarity: 'rare' },
+  { id: 'emote_spooky', type: 'emote', name: 'Spooky Pack', description: 'Scary reactions', emoji: '👻', cost: 200, rarity: 'uncommon' },
+  { id: 'emote_meme', type: 'emote', name: 'Meme Pack', description: 'Internet classics', emoji: '😂', cost: 250, rarity: 'rare' },
+  { id: 'emote_anime', type: 'emote', name: 'Anime Pack', description: 'Kawaii reactions', emoji: '🌸', cost: 350, rarity: 'epic' },
+  { id: 'emote_villain', type: 'emote', name: 'Villain Pack', description: 'Evil reactions', emoji: '😈', cost: 300, rarity: 'rare' },
+  { id: 'emote_champion', type: 'emote', name: 'Champion Pack', description: 'Victory reactions', emoji: '🏆', cost: 500, rarity: 'legendary' },
+
+  // === ENTRANCE ANIMATIONS ===
+  { id: 'entrance_default', type: 'entrance', name: 'Fade In', description: 'Simple appearance', emoji: '✨', cost: 0, rarity: 'common', isDefault: true },
+  { id: 'entrance_lightning', type: 'entrance', name: 'Lightning Strike', description: 'Appear in a flash', emoji: '⚡', cost: 300, rarity: 'rare' },
+  { id: 'entrance_fire', type: 'entrance', name: 'Fire Burst', description: 'Emerge from flames', emoji: '🔥', cost: 350, rarity: 'epic' },
+  { id: 'entrance_ice', type: 'entrance', name: 'Ice Shatter', description: 'Break through ice', emoji: '❄️', cost: 350, rarity: 'epic' },
+  { id: 'entrance_portal', type: 'entrance', name: 'Portal Open', description: 'Step through a portal', emoji: '🌀', cost: 500, rarity: 'epic' },
+  { id: 'entrance_glitch', type: 'entrance', name: 'Glitch In', description: 'Digital materialization', emoji: '📺', cost: 400, rarity: 'epic' },
+  { id: 'entrance_royal', type: 'entrance', name: 'Royal Fanfare', description: 'Trumpets and confetti', emoji: '👑', cost: 600, rarity: 'legendary' },
+  { id: 'entrance_explosion', type: 'entrance', name: 'Grand Explosion', description: 'Explosive entrance', emoji: '💥', cost: 450, rarity: 'epic' },
+  { id: 'entrance_ghost', type: 'entrance', name: 'Phantom Phase', description: 'Phase through reality', emoji: '👻', cost: 400, rarity: 'epic' },
+  { id: 'entrance_dragon', type: 'entrance', name: 'Dragon Descent', description: 'Ride in on a dragon', emoji: '🐉', cost: 800, rarity: 'legendary' },
+  { id: 'entrance_meteor', type: 'entrance', name: 'Meteor Impact', description: 'Crash from the sky', emoji: '☄️', cost: 700, rarity: 'legendary' },
+  { id: 'entrance_teleport', type: 'entrance', name: 'Teleportation', description: 'Instant arrival', emoji: '🔮', cost: 350, rarity: 'rare' },
 ];
 
 // Get items by type
@@ -223,7 +313,12 @@ export function getDefaultItems(): AvatarItem[] {
 // Calculate total value of an avatar configuration
 export function getAvatarValue(avatar: PlayerAvatar): number {
   let total = 0;
-  const parts = [avatar.base, avatar.hair, avatar.eyes, avatar.mouth, avatar.hat, avatar.glasses, avatar.accessory, avatar.outfit, avatar.background, avatar.frame];
+  const parts = [
+    avatar.base, avatar.hair, avatar.eyes, avatar.mouth, avatar.hat,
+    avatar.glasses, avatar.accessory, avatar.outfit, avatar.background,
+    avatar.frame, avatar.cardStyle, avatar.cardBack, avatar.effect,
+    avatar.emote, avatar.entrance
+  ];
   for (const partId of parts) {
     if (partId) {
       const item = getItemById(partId);
