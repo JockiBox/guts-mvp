@@ -429,7 +429,7 @@ export function useGutsGame() {
         roundNumber: prev.roundNumber + 1,
       };
     });
-  }, [collectAntes, dealCards]);
+  }, [dealCards]);
 
   const startGame = useCallback((numPlayers?: number) => {
     const count = numPlayers ?? playerCount;

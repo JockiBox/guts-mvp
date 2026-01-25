@@ -172,6 +172,8 @@ export async function updateLastLogin(userId: string) {
 }
 
 // Token management
+
+// Add tokens from purchases (updates total_tokens_purchased)
 export async function addTokens(userId: string, amount: number) {
   const profile = await getUserProfile(userId);
   if (!profile) throw new Error('Profile not found');
@@ -185,6 +187,34 @@ export async function addTokens(userId: string, amount: number) {
     .eq('id', userId);
 
   if (error) throw error;
+}
+
+// Modify tokens for game actions (rewards, ante, etc.) - fetches fresh data first
+export async function modifyGameTokens(userId: string, change: number): Promise<{ success: boolean; newBalance: number }> {
+  console.log('[SUPABASE] modifyGameTokens called:', { userId, change });
+
+  // Always fetch fresh profile to avoid stale data
+  const profile = await getUserProfile(userId);
+  if (!profile) {
+    console.error('[SUPABASE] Profile not found for user:', userId);
+    return { success: false, newBalance: 0 };
+  }
+
+  const newBalance = Math.max(0, profile.tokens + change);
+  console.log('[SUPABASE] Updating tokens:', { currentTokens: profile.tokens, change, newBalance });
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ tokens: newBalance })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('[SUPABASE] Error updating tokens:', error);
+    return { success: false, newBalance: profile.tokens };
+  }
+
+  console.log('[SUPABASE] Tokens updated successfully');
+  return { success: true, newBalance };
 }
 
 export async function spendTokens(userId: string, amount: number): Promise<boolean> {

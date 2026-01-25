@@ -11,7 +11,7 @@ import { ProfileModal } from './ProfileModal';
 import { getHandDescription, getHandValue } from '@/lib/useGutsGame';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useUser } from '@/lib/useUser';
-import { recordGameResult } from '@/lib/supabase';
+import { recordGameResult, modifyGameTokens } from '@/lib/supabase';
 import {
   playClick,
   playCardFlip,
@@ -203,7 +203,7 @@ function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak:
 }
 
 export function GameBoard() {
-  const { user, loading: userLoading, canClaimDaily, fetchProfile, claimDaily, buyItem, purchaseTokens, updateTokens } = useUser();
+  const { user, loading: userLoading, canClaimDaily, fetchProfile, claimDaily, buyItem, purchaseTokens } = useUser();
   const { state, humanPlayer, startGame, resetToStart, makeHumanDecision, nextRound, playerCount, setPlayerCount, heartProfile, isProfileHearted, difficulty, setDifficulty, newAchievements, clearNewAchievements, setHumanTokens } = useGutsGame();
   const {
     players,
@@ -325,11 +325,16 @@ export function GameBoard() {
   }, []);
 
   // Helper to add tokens - works for both logged-in users and guests
-  const addTokens = useCallback((amount: number) => {
-    console.log('[TOKENS] addTokens called:', { amount, isLoggedIn: !!user, currentLocalTokens: localTokens });
+  const addTokens = useCallback(async (amount: number) => {
+    console.log('[TOKENS] addTokens called:', { amount, isLoggedIn: !!user, userId: user?.id });
     if (user) {
-      // Logged-in user: update database + local state
-      updateTokens(amount);
+      // Logged-in user: update database directly (avoids closure issues)
+      const result = await modifyGameTokens(user.id, amount);
+      console.log('[TOKENS] Database result:', result);
+      if (result.success) {
+        // Refresh user profile to get updated tokens
+        fetchProfile();
+      }
     } else {
       // Guest: update localStorage + local state
       const before = getGuestTokens();
@@ -338,14 +343,19 @@ export function GameBoard() {
       console.log('[TOKENS] Guest add:', { before, after, amount });
       setLocalTokens(after);
     }
-  }, [user, updateTokens, localTokens]);
+  }, [user, fetchProfile]);
 
   // Helper to deduct tokens - works for both logged-in users and guests
-  const deductTokens = useCallback((amount: number) => {
-    console.log('[TOKENS] deductTokens called:', { amount, isLoggedIn: !!user, currentLocalTokens: localTokens });
+  const deductTokens = useCallback(async (amount: number) => {
+    console.log('[TOKENS] deductTokens called:', { amount, isLoggedIn: !!user, userId: user?.id });
     if (user) {
-      // Logged-in user: update database + local state
-      updateTokens(-amount);
+      // Logged-in user: update database directly (avoids closure issues)
+      const result = await modifyGameTokens(user.id, -amount);
+      console.log('[TOKENS] Database result:', result);
+      if (result.success) {
+        // Refresh user profile to get updated tokens
+        fetchProfile();
+      }
     } else {
       // Guest: update localStorage + local state
       const before = getGuestTokens();
@@ -354,7 +364,7 @@ export function GameBoard() {
       console.log('[TOKENS] Guest deduct:', { before, after, amount });
       setLocalTokens(after);
     }
-  }, [user, updateTokens, localTokens]);
+  }, [user, fetchProfile]);
 
   // Handle emote from player
   const handleEmote = useCallback((emote: string) => {
