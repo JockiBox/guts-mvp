@@ -1350,8 +1350,8 @@ export function GameBoard() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                  {/* Player info */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                  {/* Player info with tokens */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {user && (
                         <div
@@ -1373,6 +1373,57 @@ export function GameBoard() {
                       <span style={{ fontWeight: 'bold', color: '#14b8a6', fontSize: '18px' }}>
                         {user?.username || humanPlayer.name}
                       </span>
+                    </div>
+                    {/* Token display */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        background: 'rgba(15, 23, 42, 0.8)',
+                        borderRadius: '20px',
+                        padding: '4px 12px',
+                        border: '1px solid #334155',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <span style={{ fontSize: '16px' }}>🪙</span>
+                        <span
+                          style={{
+                            color: '#fbbf24',
+                            fontWeight: 'bold',
+                            fontSize: '16px',
+                            fontFamily: 'monospace',
+                          }}
+                        >
+                          {displayTokens}
+                        </span>
+                      </div>
+                      <div style={{ width: '1px', height: '16px', background: '#475569' }} />
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <span style={{ color: '#94a3b8', fontSize: '11px' }}>POT</span>
+                        <span
+                          style={{
+                            color: '#22c55e',
+                            fontWeight: 'bold',
+                            fontSize: '14px',
+                          }}
+                        >
+                          {displayedPot}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
