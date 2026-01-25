@@ -129,62 +129,69 @@ function calculateAIDecision(player: Player, difficulty: Difficulty): Decision {
   const accuracyRoll = Math.random();
   const makeMistake = accuracyRoll > config.aiAccuracy;
 
-  let holdProbability = 0.1; // Default: very unlikely to hold garbage
+  let holdProbability = 0.05; // Default: almost never hold garbage
 
-  // Hand value ranges (for reference):
-  // 6-9: 2000+ | Pairs: 1000-1014 | A-K: 223 | K-Q: 207 | Q-J: 191
-  // J-10: 175 | 10-9: 159 | 9-8: 143 | 8-7: 127 | 7-6: 111
-  // 6-5: 95 | 5-4: 79 | 4-3: 63 | 3-2: 47
+  // STRATEGIC AI - Only hold strong hands!
+  // Hand value formula: max(val) * 15 + min(val)
+  // 6-9: 2000+ | Pairs: 1000-1014
+  // A-x: 212-223 (Ace + anything from 2 to K)
+  // K-x: 197-207 (King + anything)
+  // Q-x: 182-191 | J-x: 167-175 | 10-x: 152-159
+  // Lower hands: below 152
 
-  if (handValue >= 1000) {
-    // Pairs or 6-9 - almost always hold
-    holdProbability = 0.97;
-  } else if (handValue >= 205) {
-    // A-K, A-Q, K-Q - very strong high cards
-    holdProbability = 0.80;
-  } else if (handValue >= 175) {
-    // Q-J, J-10 - solid hands
-    holdProbability = 0.55;
-  } else if (handValue >= 145) {
-    // 10-9, 9-8 - mediocre, risky
+  if (handValue >= 2000) {
+    // 6-9 - THE NUTS - always hold
+    holdProbability = 0.99;
+  } else if (handValue >= 1000) {
+    // Pairs - almost always hold
+    holdProbability = 0.95;
+  } else if (handValue >= 212) {
+    // Ace + anything - strong, usually hold
+    holdProbability = 0.85;
+  } else if (handValue >= 204) {
+    // King + 9 or better (K-9, K-10, K-J, K-Q) - decent
+    holdProbability = 0.60;
+  } else if (handValue >= 197) {
+    // King + low card (K-2 through K-8) - marginal
     holdProbability = 0.30;
-  } else if (handValue >= 110) {
-    // 8-7, 7-6 - weak
-    holdProbability = 0.15;
+  } else if (handValue >= 182) {
+    // Queen high - weak, rarely hold
+    holdProbability = 0.12;
   } else {
-    // Trash hands (below 7-high)
-    holdProbability = 0.08;
-    // Small bluff chance on garbage
+    // Jack high or worse - garbage, almost never hold
+    holdProbability = 0.05;
+    // Small bluff chance
     if (Math.random() < config.aiBluffChance) {
-      holdProbability = 0.35;
+      holdProbability = 0.18;
     }
   }
 
   // Apply cautiousness modifier from difficulty
   holdProbability += config.aiCautiousness;
 
-  // Personality modifiers - make them more impactful
+  // Personality modifiers - more subtle now
   switch (player.personality) {
     case 'aggressive':
-      // Aggressive players are reckless - hold more often
-      holdProbability = Math.min(0.95, holdProbability + 0.25);
+      // Aggressive players take more risks
+      holdProbability = Math.min(0.95, holdProbability + 0.12);
       break;
     case 'conservative':
-      // Conservative players only play strong hands
-      holdProbability = Math.max(0.05, holdProbability - 0.25);
+      // Conservative players only play premium hands
+      holdProbability = Math.max(0.03, holdProbability - 0.15);
       break;
     case 'random':
-      // Chaotic - truly random but weighted slightly by hand
-      holdProbability = 0.3 + Math.random() * 0.4;
+      // Chaotic - unpredictable but still weighted by hand strength
+      const randomBonus = (Math.random() - 0.5) * 0.25;
+      holdProbability = Math.max(0.08, Math.min(0.85, holdProbability + randomBonus));
       break;
     case 'tricky':
-      // Mind games - reverse expectations
-      if (handValue >= 175) {
-        // Good hand? Sometimes drop to confuse
-        holdProbability = Math.max(0.4, holdProbability - 0.2);
-      } else {
-        // Bad hand? Sometimes bluff
-        holdProbability = Math.min(0.6, holdProbability + 0.2);
+      // Mind games - occasionally trap or bluff
+      if (handValue >= 1000) {
+        // Monster hand? Occasionally slow-play (drop to seem weak)
+        if (Math.random() < 0.08) holdProbability = 0.25;
+      } else if (handValue < 182) {
+        // Garbage? Occasionally bluff
+        if (Math.random() < 0.12) holdProbability = 0.40;
       }
       break;
   }
