@@ -102,7 +102,7 @@ interface TauntDisplayProps {
 
 export function TauntDisplay({ taunt, playerName, response, botName, onComplete }: TauntDisplayProps) {
   useEffect(() => {
-    const timer = setTimeout(onComplete, response ? 4000 : 2500);
+    const timer = setTimeout(onComplete, 2000);
     return () => clearTimeout(timer);
   }, [onComplete, response]);
 
@@ -127,10 +127,10 @@ export function TauntDisplay({ taunt, playerName, response, botName, onComplete 
     <div
       style={{
         position: 'fixed',
-        top: '50%',
+        bottom: '220px',
         left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 900,
+        transform: 'translateX(-50%)',
+        zIndex: 400,
         animation: 'taunt-appear 0.3s ease-out',
       }}
     >
@@ -138,28 +138,31 @@ export function TauntDisplay({ taunt, playerName, response, botName, onComplete 
       <div
         style={{
           background: 'rgba(30, 41, 59, 0.95)',
-          borderRadius: '16px',
-          padding: '16px 24px',
+          borderRadius: '12px',
+          padding: '10px 20px',
           border: '2px solid #14b8a6',
-          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
-          textAlign: 'center',
-          marginBottom: response ? '12px' : 0,
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          marginBottom: response ? '8px' : 0,
         }}
       >
         <div
           style={{
-            fontSize: '48px',
-            marginBottom: '8px',
+            fontSize: '32px',
             animation: getAnimationStyle(),
           }}
         >
           {taunt.emoji}
         </div>
-        <div style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: 'bold' }}>
-          {taunt.text}
-        </div>
-        <div style={{ color: '#64748b', fontSize: '11px', marginTop: '4px' }}>
-          - {playerName}
+        <div>
+          <div style={{ color: '#e2e8f0', fontSize: '13px', fontWeight: 'bold' }}>
+            {taunt.text}
+          </div>
+          <div style={{ color: '#64748b', fontSize: '10px' }}>
+            - {playerName}
+          </div>
         </div>
       </div>
 
@@ -168,26 +171,31 @@ export function TauntDisplay({ taunt, playerName, response, botName, onComplete 
         <div
           style={{
             background: 'rgba(239, 68, 68, 0.2)',
-            borderRadius: '16px',
-            padding: '12px 20px',
+            borderRadius: '12px',
+            padding: '8px 16px',
             border: '2px solid #ef4444',
-            textAlign: 'center',
-            animation: 'response-appear 0.5s ease-out 0.5s both',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            animation: 'response-appear 0.5s ease-out 0.3s both',
           }}
         >
-          <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: 'bold' }}>
-            {response}
-          </div>
-          <div style={{ color: '#64748b', fontSize: '10px', marginTop: '4px' }}>
-            - {botName}
+          <span style={{ fontSize: '20px' }}>😤</span>
+          <div>
+            <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: 'bold' }}>
+              {response}
+            </div>
+            <div style={{ color: '#64748b', fontSize: '10px' }}>
+              - {botName}
+            </div>
           </div>
         </div>
       )}
 
       <style>{`
         @keyframes taunt-appear {
-          from { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
-          to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          from { opacity: 0; transform: translateX(-50%) scale(0.5); }
+          to { opacity: 1; transform: translateX(-50%) scale(1); }
         }
         @keyframes response-appear {
           from { opacity: 0; transform: translateY(-10px); }

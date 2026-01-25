@@ -14,8 +14,8 @@ export function HelpLegend({ isExpanded: initialExpanded = false }: HelpLegendPr
     <div
       style={{
         position: 'fixed',
-        top: '70px',
-        right: '8px',
+        bottom: '8px',
+        left: '8px',
         zIndex: 9999,
       }}
     >
@@ -192,6 +192,123 @@ export function HelpLegend({ isExpanded: initialExpanded = false }: HelpLegendPr
             </div>
           </div>
 
+          {/* Power-ups Section */}
+          <div style={{ marginBottom: '16px' }}>
+            <h4 style={{ margin: '0 0 8px', color: '#3b82f6', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>⚡</span> Power-ups
+            </h4>
+            <div style={{ color: '#cbd5e1', fontSize: '11px', lineHeight: '1.5' }}>
+              <p style={{ margin: '0 0 8px', fontSize: '12px' }}>
+                Use power-ups during your turn for special advantages:
+              </p>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                background: 'rgba(0, 0, 0, 0.2)',
+                borderRadius: '8px',
+                padding: '8px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px' }}>👁️</span>
+                  <div>
+                    <strong style={{ color: '#94a3b8' }}>Ghost Peek</strong>
+                    <span style={{ color: '#64748b' }}> - See one ghost card</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px' }}>🔄</span>
+                  <div>
+                    <strong style={{ color: '#94a3b8' }}>Card Swap</strong>
+                    <span style={{ color: '#64748b' }}> - Exchange a card with deck</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px' }}>🍀</span>
+                  <div>
+                    <strong style={{ color: '#94a3b8' }}>Lucky Draw</strong>
+                    <span style={{ color: '#64748b' }}> - Redraw one card</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px' }}>💰</span>
+                  <div>
+                    <strong style={{ color: '#fbbf24' }}>Double Down</strong>
+                    <span style={{ color: '#64748b' }}> - 2x winnings if you win</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px' }}>🛡️</span>
+                  <div>
+                    <strong style={{ color: '#fbbf24' }}>Shield</strong>
+                    <span style={{ color: '#64748b' }}> - Protect from matching pot</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px' }}>🔮</span>
+                  <div>
+                    <strong style={{ color: '#a855f7' }}>Mind Read</strong>
+                    <span style={{ color: '#64748b' }}> - See opponent cards early</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px' }}>❄️</span>
+                  <div>
+                    <strong style={{ color: '#a855f7' }}>Ghost Freeze</strong>
+                    <span style={{ color: '#64748b' }}> - Stop ghost hand addition</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px' }}>🃏</span>
+                  <div>
+                    <strong style={{ color: '#f59e0b' }}>Third Card</strong>
+                    <span style={{ color: '#64748b' }}> - Get 3 cards, keep best 2</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14px' }}>⏱️</span>
+                  <div>
+                    <strong style={{ color: '#94a3b8' }}>Time Extender</strong>
+                    <span style={{ color: '#64748b' }}> - +5 sec pause time</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Emotes & Taunts Section */}
+          <div style={{ marginBottom: '16px' }}>
+            <h4 style={{ margin: '0 0 8px', color: '#ec4899', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>😤</span> Emotes & Taunts
+            </h4>
+            <div style={{ color: '#cbd5e1', fontSize: '12px', lineHeight: '1.5' }}>
+              <p style={{ margin: '0 0 8px' }}>
+                Express yourself and mess with opponents!
+              </p>
+              <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                <li><strong>Emotes</strong> - Show your mood (below your cards)</li>
+                <li><strong>Taunts</strong> - Trash talk bots to tilt them!</li>
+                <li>Bots may respond with their own taunts</li>
+                <li>Use during PAUSE for maximum effect</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Pause System Section */}
+          <div style={{ marginBottom: '16px' }}>
+            <h4 style={{ margin: '0 0 8px', color: '#8b5cf6', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>⏸️</span> Pause System
+            </h4>
+            <div style={{ color: '#cbd5e1', fontSize: '12px', lineHeight: '1.5' }}>
+              <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                <li>Press PAUSE for 15 seconds to think</li>
+                <li>Use power-ups or taunts while paused</li>
+                <li>Start with 1 token, earn 1 every 5 wins</li>
+                <li>Buy more in the shop!</li>
+              </ul>
+            </div>
+          </div>
+
           {/* Quick Tips */}
           <div>
             <h4 style={{ margin: '0 0 8px', color: '#14b8a6', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -201,7 +318,7 @@ export function HelpLegend({ isExpanded: initialExpanded = false }: HelpLegendPr
               <p style={{ margin: '0 0 4px' }}>• <strong>6-9</strong> is the best hand (beats pairs!)</p>
               <p style={{ margin: '0 0 4px' }}>• Pairs beat high cards</p>
               <p style={{ margin: '0 0 4px' }}>• Losers match the pot</p>
-              <p style={{ margin: '0 0 4px' }}>• Ghost hands stay until someone beats them</p>
+              <p style={{ margin: '0 0 4px' }}>• Ghost wins = ALL holders match pot!</p>
               <p style={{ margin: 0 }}>• If everyone holds, another ghost joins!</p>
             </div>
           </div>

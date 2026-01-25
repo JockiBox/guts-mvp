@@ -297,37 +297,36 @@ export function FloatingEmote({ emote, playerName, onComplete }: FloatingEmotePr
     <div
       style={{
         position: 'fixed',
-        top: '50%',
+        bottom: '220px',
         left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 9999,
+        transform: 'translateX(-50%)',
+        zIndex: 400,
         animation: 'emote-pop 2s ease-out forwards',
       }}
     >
       <style>{`
         @keyframes emote-pop {
-          0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
-          20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
-          30% { transform: translate(-50%, -50%) scale(1); }
-          80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-          100% { transform: translate(-50%, -70%) scale(0.8); opacity: 0; }
+          0% { transform: translateX(-50%) scale(0); opacity: 0; }
+          20% { transform: translateX(-50%) scale(1.2); opacity: 1; }
+          30% { transform: translateX(-50%) scale(1); }
+          80% { transform: translateX(-50%) scale(1); opacity: 1; }
+          100% { transform: translateX(-50%) translateY(-20px) scale(0.8); opacity: 0; }
         }
       `}</style>
       <div
         style={{
           background: 'rgba(30, 41, 59, 0.95)',
-          borderRadius: '20px',
-          padding: '16px 24px',
+          borderRadius: '16px',
+          padding: '12px 20px',
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
-          gap: '8px',
+          gap: '10px',
           border: '2px solid #14b8a6',
-          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
         }}
       >
-        <span style={{ fontSize: '48px' }}>{emote}</span>
-        <span style={{ color: '#94a3b8', fontSize: '12px' }}>{playerName}</span>
+        <span style={{ fontSize: '32px' }}>{emote}</span>
+        <span style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: 'bold' }}>{playerName}</span>
       </div>
     </div>
   );

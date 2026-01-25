@@ -406,7 +406,7 @@ export function useGutsGame() {
         ...prev,
         ghostHands,
         gamePhase: 'decision',
-        countdown: 3,
+        countdown: 5,
         roundResult: '',
         winners: [],
         losers: [],
@@ -525,8 +525,11 @@ export function useGutsGame() {
       const ghostWon = winner.isGhost;
       const playerWon = !winner.isGhost;
 
-      // Losers are all players who held but didn't win (ghosts don't pay)
-      const loserIds = losers.filter(h => !h.isGhost).map(h => h.id);
+      // When ghost wins, ALL players who held must match the pot
+      // When player wins, only players who held with lower hands pay
+      const loserIds = ghostWon
+        ? playerHands.map(h => h.id)  // Ghost wins: all holders pay
+        : losers.filter(h => !h.isGhost).map(h => h.id);  // Player wins: only lower hands pay
 
       // Calculate what losers pay - they match the pot
       let loserPayments = 0;
@@ -553,10 +556,11 @@ export function useGutsGame() {
       let resultMessage: string;
 
       if (ghostWon) {
-        // Ghost won - pot stays plus losers' payments
+        // Ghost won - pot stays plus all holders must match
         newPot = prev.pot + loserPayments;
         const winningGhost = prev.ghostHands.find(g => g.id === winner.id);
-        resultMessage = `👻 Ghost wins with ${getHandDescription(winningGhost?.cards || [])}! Pot stays at ${newPot}.`;
+        const holdersCount = playerHands.length;
+        resultMessage = `👻 Ghost wins with ${getHandDescription(winningGhost?.cards || [])}! ${holdersCount > 0 ? `All ${holdersCount} holder${holdersCount > 1 ? 's' : ''} match the pot!` : ''} Pot is now ${newPot}.`;
       } else {
         // Player won - they take pot, losers' payments become new pot
         newPot = loserPayments;
@@ -712,7 +716,7 @@ export function useGutsGame() {
             cardsRevealed: 0,
           })),
           gamePhase: 'decision',
-          countdown: 3,
+          countdown: 5,
           roundResult: `Everyone held! Ghost hand #${prev.ghostHands.length + 1} added. New cards dealt!`,
         };
       }

@@ -174,7 +174,7 @@ function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak:
     <div
       style={{
         position: 'fixed',
-        top: '8px',
+        bottom: '120px',
         right: '8px',
         background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.95), rgba(217, 119, 6, 0.95))',
         borderRadius: '10px',
@@ -182,7 +182,7 @@ function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak:
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
-        zIndex: 9999,
+        zIndex: 500,
         boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
         animation: 'toast-slide-in 0.3s ease-out',
         cursor: 'pointer',
@@ -406,11 +406,13 @@ export function GameBoard() {
 
   // Handle mystery box reward
   const handleMysteryBoxReward = useCallback((reward: MysteryBoxReward) => {
-    if (!user) return;
     if (reward.type === 'tokens' && reward.value) {
       const amount = typeof reward.value === 'number' ? reward.value : parseInt(reward.value, 10);
-      addGuestTokens(amount);
-      addGuestTokens(amount);
+      if (user) {
+        // Backend integration for logged-in users
+      } else {
+        addGuestTokens(amount);
+      }
     }
     // Other reward types would unlock items in wallet
     setWallet(loadWallet());
@@ -419,10 +421,12 @@ export function GameBoard() {
 
   // Handle wheel spin reward
   const handleWheelReward = useCallback((reward: { type: string; value: number }) => {
-    if (!user) return;
     if (reward.type === 'tokens') {
-      addGuestTokens(reward.value);
-      addGuestTokens(reward.value);
+      if (user) {
+        // Backend integration for logged-in users
+      } else {
+        addGuestTokens(reward.value);
+      }
     }
     setWheelState(loadWheelState());
     playTokens();
@@ -436,6 +440,24 @@ export function GameBoard() {
     playClick();
   }, [user]);
 
+  // Wrapper for startGame that deducts ante from guestTokens
+  const handleStartGame = useCallback((numPlayers?: number) => {
+    // Deduct 1 token ante for the human player
+    if (!user) {
+      deductGuestTokens(1);
+    }
+    startGame(numPlayers);
+  }, [user, startGame]);
+
+  // Wrapper for nextRound that deducts ante from guestTokens
+  const handleNextRound = useCallback(() => {
+    // Deduct 1 token ante for the human player
+    if (!user) {
+      deductGuestTokens(1);
+    }
+    nextRound();
+  }, [user, nextRound]);
+
   // Generate bot rivalry messages occasionally
   useEffect(() => {
     if (gamePhase === 'decision' && players.length > 2) {
@@ -444,7 +466,7 @@ export function GameBoard() {
         const taunt = generateRivalryTaunt(aiPlayers);
         if (taunt) {
           setRivalryMessage(taunt);
-          setTimeout(() => setRivalryMessage(null), 3000);
+          setTimeout(() => setRivalryMessage(null), 2000);
         }
       }
     }
@@ -511,7 +533,7 @@ export function GameBoard() {
           updatedProgress = winsResult.updated;
           if (winsResult.newlyCompleted.length > 0) {
             setCompletedChallenge(winsResult.newlyCompleted[0]);
-            setTimeout(() => setCompletedChallenge(null), 3000);
+            setTimeout(() => setCompletedChallenge(null), 2000);
           }
 
           // Track pairs
@@ -675,12 +697,15 @@ export function GameBoard() {
         wouldHaveLost,
         dropped
       );
-      if (comboResult.combosTriggered.length > 0 && user) {
+      if (comboResult.combosTriggered.length > 0) {
         setActiveCombos(comboResult.combosTriggered);
         // Award combo bonuses
         if (comboResult.totalBonus > 0) {
-          addGuestTokens(comboResult.totalBonus);
-          addGuestTokens(comboResult.totalBonus);
+          if (user) {
+            // Backend integration for logged-in users
+          } else {
+            addGuestTokens(comboResult.totalBonus);
+          }
         }
       }
 
@@ -699,7 +724,7 @@ export function GameBoard() {
         if (pauseReward.earned) {
           setPauseTokens(pauseReward.newTotal);
           setPauseTokenEarned(true);
-          setTimeout(() => setPauseTokenEarned(false), 3000);
+          setTimeout(() => setPauseTokenEarned(false), 2000);
         }
       }
 
@@ -720,9 +745,12 @@ export function GameBoard() {
           if (revenge) {
             completeRevenge(bot.id);
             setRevengeMessage(`REVENGE on ${bot.name}! +${revenge.bounty} bonus!`);
-            addGuestTokens(revenge.bounty);
-            if (user) addGuestTokens(revenge.bounty);
-            setTimeout(() => setRevengeMessage(null), 3000);
+            if (user) {
+              // Backend integration for logged-in users
+            } else {
+              addGuestTokens(revenge.bounty);
+            }
+            setTimeout(() => setRevengeMessage(null), 2000);
             setRevengeTarget(getTopRevengeTarget());
           }
         }
@@ -791,7 +819,7 @@ export function GameBoard() {
       const handValue = getHandValue(humanPlayer.cards);
       if (handValue > 500) {
         setCloseCallMessage("You had a strong hand!");
-        setTimeout(() => setCloseCallMessage(null), 2500);
+        setTimeout(() => setCloseCallMessage(null), 2000);
       }
     }
   }, [gamePhase, humanPlayer, winners, losers]);
@@ -1067,7 +1095,7 @@ export function GameBoard() {
         />
 
         <StartScreen
-          onStart={startGame}
+          onStart={handleStartGame}
           resultMessage={roundResult}
           playerCount={playerCount}
           setPlayerCount={setPlayerCount}
@@ -1158,7 +1186,7 @@ export function GameBoard() {
         <div
           style={{
             position: 'fixed',
-            top: '70px',
+            bottom: '180px',
             left: '16px',
             background: 'linear-gradient(135deg, rgba(251, 146, 60, 0.9), rgba(239, 68, 68, 0.9))',
             borderRadius: '12px',
@@ -1334,7 +1362,7 @@ export function GameBoard() {
         <div
           style={{
             position: 'fixed',
-            top: '8px',
+            bottom: '180px',
             left: '50%',
             transform: 'translateX(-50%)',
             background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(109, 40, 217, 0.95))',
@@ -1343,9 +1371,9 @@ export function GameBoard() {
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            zIndex: 9999,
+            zIndex: 500,
             boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)',
-            animation: 'toast-slide-down 0.3s ease-out',
+            animation: 'toast-slide-up 0.3s ease-out',
           }}
         >
           <span style={{ fontSize: '24px' }}>⏸️</span>
@@ -1507,7 +1535,7 @@ export function GameBoard() {
                     onClick={() => {
                       playClick();
                       setShowMenu(false);
-                      startGame();
+                      handleStartGame();
                     }}
                     style={{
                       width: '100%',
@@ -1952,10 +1980,13 @@ export function GameBoard() {
         {aiPlayers.map((player, index) => {
           // Calculate position around the circle (top half only, human at bottom)
           const totalAI = aiPlayers.length;
-          const angleStep = 180 / (totalAI + 1); // Spread across top half
-          const angle = (180 + angleStep * (index + 1)) * (Math.PI / 180); // Start from left, go right
-          const radiusX = 42; // % from center horizontally
-          const radiusY = 38; // % from center vertically
+          const angleStep = 160 / (totalAI + 1); // Narrower spread to avoid edges
+          const angle = (190 + angleStep * (index + 1)) * (Math.PI / 180); // Start from left, go right
+          // Adjust radius based on number of players - more players = tighter circle
+          const baseRadiusX = totalAI <= 3 ? 38 : totalAI <= 5 ? 40 : 42;
+          const baseRadiusY = totalAI <= 3 ? 34 : totalAI <= 5 ? 36 : 38;
+          const radiusX = baseRadiusX; // % from center horizontally
+          const radiusY = baseRadiusY; // % from center vertically
 
           const left = 50 + radiusX * Math.cos(angle);
           const top = 50 + radiusY * Math.sin(angle);
@@ -2473,9 +2504,9 @@ export function GameBoard() {
                 </div>
               </div>
 
-              {/* Side Bets and Emote Buttons - Inline */}
+              {/* Side Bets, Emotes, and Taunts - Inline near player cards */}
               {isDecisionPhase && !humanDecided && (
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'flex-start', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'flex-start', justifyContent: 'center', flexWrap: 'wrap' }}>
                   {/* Side Bets Button */}
                   <button
                     onClick={() => { playClick(); setShowSideBets(true); }}
@@ -2504,6 +2535,16 @@ export function GameBoard() {
 
                   {/* Emote Buttons */}
                   <EmoteButtons onEmote={handleEmote} />
+
+                  {/* Taunt Buttons - Near player cards */}
+                  {aiPlayers.length > 0 && (
+                    <TauntButtons
+                      onTaunt={handleTaunt}
+                      targetBotName={aiPlayers[0].name}
+                      targetBotPersonality="aggressive"
+                      disabled={false}
+                    />
+                  )}
                 </div>
               )}
 
@@ -2724,7 +2765,22 @@ export function GameBoard() {
                   <button
                     onClick={() => {
                       playClick();
-                      nextRound();
+                      // Clear all popups and notifications
+                      setActiveCombos([]);
+                      setCloseCallMessage(null);
+                      setRivalryMessage(null);
+                      setPauseTokenEarned(false);
+                      setGhostStory(null);
+                      setActiveTaunt(null);
+                      setFloatingEmote(null);
+                      setRevengeMessage(null);
+                      setAchievementPopup(null);
+                      setGameAchievementPopup(null);
+                      setCompletedChallenge(null);
+                      setSixNineReveal(null);
+                      setShowParticles(null);
+                      setFlashColor(null);
+                      handleNextRound();
                     }}
                     style={{
                       padding: '18px 48px',
@@ -2939,7 +2995,9 @@ export function GameBoard() {
           onReward={(reward) => {
             if (reward.type === 'tokens' && typeof reward.value === 'number') {
               addGuestTokens(reward.value);
-              addGuestTokens(reward.value);
+            } else if (reward.type === 'pause_token' && typeof reward.value === 'number') {
+              addPauseTokens(reward.value);
+              setPauseTokens(getPauseTokenCount());
             }
             setWheelState(loadWheelState());
             playTokens();
@@ -3035,14 +3093,13 @@ export function GameBoard() {
         </div>
       )}
 
-      {/* Power-ups Bar - Fixed Left Edge */}
+      {/* Power-ups Bar - Fixed Bottom Left */}
       {isDecisionPhase && !humanDecided && (
         <div
           style={{
             position: 'fixed',
             left: '8px',
-            top: '50%',
-            transform: 'translateY(-50%)',
+            bottom: '120px',
             zIndex: 100,
           }}
         >
@@ -3054,32 +3111,38 @@ export function GameBoard() {
         </div>
       )}
 
-      {/* Taunt Buttons - Fixed Right Edge */}
-      {isDecisionPhase && !humanDecided && user && aiPlayers.length > 0 && (
+      {/* Bot Impatience During Pause */}
+      {isPaused && aiPlayers.length > 0 && (
         <div
           style={{
             position: 'fixed',
-            right: '8px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            zIndex: 100,
+            top: '120px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(239, 68, 68, 0.15)',
+            borderRadius: '12px',
+            padding: '8px 16px',
+            border: '2px solid rgba(239, 68, 68, 0.3)',
+            zIndex: 150,
+            animation: 'impatience-pulse 1s ease-in-out infinite',
           }}
         >
-          <TauntButtons
-            onTaunt={handleTaunt}
-            targetBotName={aiPlayers[0].name}
-            targetBotPersonality="aggressive"
-            disabled={!isDecisionPhase || humanDecided}
-          />
+          <div style={{ color: '#f87171', fontSize: '12px', fontWeight: 'bold', textAlign: 'center' }}>
+            {aiPlayers[Math.floor(Math.random() * aiPlayers.length)]?.name || 'Bot'}: &quot;{
+              pauseTimeRemaining > 10 ? "Hurry up already! ⏰" :
+              pauseTimeRemaining > 5 ? "We're waiting... 😤" :
+              "Come on, decide! 🔥"
+            }&quot;
+          </div>
         </div>
       )}
 
       {/* Revenge Target Indicator */}
-      {revengeTarget && gamePhase === 'decision' && (
+      {revengeTarget && gamePhase === 'decision' && !isPaused && (
         <div
           style={{
             position: 'fixed',
-            bottom: '280px',
+            top: '120px',
             right: '8px',
             background: 'rgba(239, 68, 68, 0.2)',
             borderRadius: '12px',
@@ -3139,6 +3202,10 @@ export function GameBoard() {
         @keyframes toast-slide-down {
           from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
           to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+        @keyframes impatience-pulse {
+          0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.8; }
+          50% { transform: translateX(-50%) scale(1.05); opacity: 1; }
         }
         @keyframes shake {
           0%, 100% { transform: translateX(0); }

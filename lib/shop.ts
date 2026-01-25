@@ -22,18 +22,18 @@ export interface TokenPackage {
   stripePriceId?: string;
 }
 
-// Token packages for purchase
+// Token packages for purchase - WICKED DEALS
 export const TOKEN_PACKAGES: TokenPackage[] = [
   {
     id: 'starter',
-    name: 'Starter Pack',
+    name: 'Rookie Stack',
     tokens: 1000,
     price: 499, // $4.99
     bonus: 0,
   },
   {
     id: 'popular',
-    name: 'Popular Pack',
+    name: 'Hustler Bundle',
     tokens: 2500,
     price: 999, // $9.99
     bonus: 250,
@@ -41,44 +41,54 @@ export const TOKEN_PACKAGES: TokenPackage[] = [
   },
   {
     id: 'value',
-    name: 'Value Pack',
+    name: 'Shark Tank',
     tokens: 6000,
     price: 1999, // $19.99
     bonus: 1000,
   },
   {
     id: 'whale',
-    name: 'High Roller',
+    name: 'Whale Vault',
     tokens: 15000,
     price: 4999, // $49.99
     bonus: 3000,
   },
 ];
 
-// Avatar items
+// Avatar items - WICKED COOL COLLECTION
 export const AVATAR_SHOP: ShopItem[] = [
-  // Common (50 tokens)
-  { id: 'av_cool', name: 'Cool Dude', description: 'Classic cool look', price: 50, type: 'avatar', value: '😎', icon: '😎', rarity: 'common' },
-  { id: 'av_sunglasses', name: 'Shades', description: 'Too cool for school', price: 50, type: 'avatar', value: '🕶️', icon: '🕶️', rarity: 'common' },
-  { id: 'av_fire', name: 'On Fire', description: 'Blazing hot player', price: 50, type: 'avatar', value: '🔥', icon: '🔥', rarity: 'common' },
-  { id: 'av_star', name: 'Star Player', description: 'Rising star', price: 50, type: 'avatar', value: '⭐', icon: '⭐', rarity: 'common' },
+  // Common (50 tokens) - Cool Starters
+  { id: 'av_cool', name: 'Ice Cold', description: 'Cooler than your bluffs', price: 50, type: 'avatar', value: '😎', icon: '😎', rarity: 'common' },
+  { id: 'av_sunglasses', name: 'Night Owl', description: 'Plays in the shadows', price: 50, type: 'avatar', value: '🕶️', icon: '🕶️', rarity: 'common' },
+  { id: 'av_fire', name: 'Hotshot', description: 'Every hand is fire', price: 50, type: 'avatar', value: '🔥', icon: '🔥', rarity: 'common' },
+  { id: 'av_star', name: 'Rising Star', description: 'Future GOAT', price: 50, type: 'avatar', value: '⭐', icon: '⭐', rarity: 'common' },
+  { id: 'av_lightning', name: 'Thunder', description: 'Strikes fast', price: 75, type: 'avatar', value: '⚡', icon: '⚡', rarity: 'common' },
 
-  // Rare (150 tokens)
-  { id: 'av_crown', name: 'Royal Crown', description: 'Rule the table', price: 150, type: 'avatar', value: '👑', icon: '👑', rarity: 'rare' },
-  { id: 'av_diamond', name: 'Diamond', description: 'Precious player', price: 150, type: 'avatar', value: '💎', icon: '💎', rarity: 'rare' },
-  { id: 'av_rocket', name: 'Rocket', description: 'To the moon!', price: 150, type: 'avatar', value: '🚀', icon: '🚀', rarity: 'rare' },
-  { id: 'av_ghost', name: 'Ghost', description: 'Spooky player', price: 150, type: 'avatar', value: '👻', icon: '👻', rarity: 'rare' },
+  // Rare (150 tokens) - Prestigious
+  { id: 'av_crown', name: 'King Slayer', description: 'Dethroned the best', price: 150, type: 'avatar', value: '👑', icon: '👑', rarity: 'rare' },
+  { id: 'av_diamond', name: 'Diamond Hands', description: 'Never folds', price: 150, type: 'avatar', value: '💎', icon: '💎', rarity: 'rare' },
+  { id: 'av_rocket', name: 'Moon Mission', description: 'Bankroll to infinity', price: 150, type: 'avatar', value: '🚀', icon: '🚀', rarity: 'rare' },
+  { id: 'av_ghost', name: 'Phantom', description: 'Haunts the table', price: 150, type: 'avatar', value: '👻', icon: '👻', rarity: 'rare' },
+  { id: 'av_skull', name: 'Death Dealer', description: 'Cards of doom', price: 200, type: 'avatar', value: '💀', icon: '💀', rarity: 'rare' },
+  { id: 'av_clown', name: 'Wild Card', description: 'Unpredictable chaos', price: 175, type: 'avatar', value: '🤡', icon: '🤡', rarity: 'rare' },
 
-  // Epic (400 tokens)
-  { id: 'av_alien', name: 'Alien', description: 'Out of this world', price: 400, type: 'avatar', value: '👽', icon: '👽', rarity: 'epic' },
-  { id: 'av_robot', name: 'Robot', description: 'Calculated moves', price: 400, type: 'avatar', value: '🤖', icon: '🤖', rarity: 'epic' },
-  { id: 'av_ninja', name: 'Ninja', description: 'Silent but deadly', price: 400, type: 'avatar', value: '🥷', icon: '🥷', rarity: 'epic' },
-  { id: 'av_wizard', name: 'Wizard', description: 'Magical plays', price: 400, type: 'avatar', value: '🧙', icon: '🧙', rarity: 'epic' },
+  // Epic (400 tokens) - Legendary Status
+  { id: 'av_alien', name: 'Xenomorph', description: 'From planet Bluffton', price: 400, type: 'avatar', value: '👽', icon: '👽', rarity: 'epic' },
+  { id: 'av_robot', name: 'Terminator', description: 'Ill be back... for your tokens', price: 400, type: 'avatar', value: '🤖', icon: '🤖', rarity: 'epic' },
+  { id: 'av_ninja', name: 'Shadow Assassin', description: 'Strikes without warning', price: 400, type: 'avatar', value: '🥷', icon: '🥷', rarity: 'epic' },
+  { id: 'av_wizard', name: 'Archmage', description: 'Master of card magic', price: 400, type: 'avatar', value: '🧙', icon: '🧙', rarity: 'epic' },
+  { id: 'av_vampire', name: 'Blood Lord', description: 'Drains your stack', price: 500, type: 'avatar', value: '🧛', icon: '🧛', rarity: 'epic' },
+  { id: 'av_demon', name: 'Hellspawn', description: 'Made a deal for luck', price: 550, type: 'avatar', value: '😈', icon: '😈', rarity: 'epic' },
+  { id: 'av_samurai', name: 'Ronin Master', description: 'Way of the card', price: 450, type: 'avatar', value: '⚔️', icon: '⚔️', rarity: 'epic' },
+  { id: 'av_pirate', name: 'Dread Pirate', description: 'Plunders pots', price: 450, type: 'avatar', value: '🏴‍☠️', icon: '🏴‍☠️', rarity: 'epic' },
 
-  // Legendary (1000 tokens)
-  { id: 'av_dragon', name: 'Dragon', description: 'Legendary beast', price: 1000, type: 'avatar', value: '🐉', icon: '🐉', rarity: 'legendary' },
-  { id: 'av_unicorn', name: 'Unicorn', description: 'Mythical player', price: 1000, type: 'avatar', value: '🦄', icon: '🦄', rarity: 'legendary' },
-  { id: 'av_phoenix', name: 'Phoenix', description: 'Rise from the ashes', price: 1000, type: 'avatar', value: '🔱', icon: '🔱', rarity: 'legendary' },
+  // Legendary (1000 tokens) - ULTRA RARE
+  { id: 'av_dragon', name: 'Dragon Emperor', description: 'Fire and fury', price: 1000, type: 'avatar', value: '🐉', icon: '🐉', rarity: 'legendary' },
+  { id: 'av_unicorn', name: 'Mythic Beast', description: 'Impossibly lucky', price: 1000, type: 'avatar', value: '🦄', icon: '🦄', rarity: 'legendary' },
+  { id: 'av_phoenix', name: 'Phoenix Rising', description: 'Reborn from every loss', price: 1000, type: 'avatar', value: '🦅', icon: '🦅', rarity: 'legendary' },
+  { id: 'av_kraken', name: 'Kraken', description: 'Tentacles of terror', price: 1200, type: 'avatar', value: '🐙', icon: '🐙', rarity: 'legendary' },
+  { id: 'av_god', name: 'Card God', description: 'Mortals tremble', price: 1500, type: 'avatar', value: '⚡', icon: '⚡', rarity: 'legendary' },
+  { id: 'av_reaper', name: 'Soul Reaper', description: 'Collects losing souls', price: 1500, type: 'avatar', value: '💀', icon: '💀', rarity: 'legendary' },
 ];
 
 // Theme items

@@ -10,18 +10,19 @@ export interface WheelSegment {
 }
 
 export interface WheelReward {
-  type: 'tokens' | 'power_up' | 'item' | 'multiplier' | 'nothing';
+  type: 'tokens' | 'power_up' | 'item' | 'multiplier' | 'pause_token' | 'nothing';
   value: number | string; // Token amount, item ID, or multiplier
   displayValue: string;
 }
 
 export const WHEEL_SEGMENTS: WheelSegment[] = [
-  { id: 'tokens_10', label: '10', icon: '🪙', color: '#fbbf24', reward: { type: 'tokens', value: 10, displayValue: '+10 Tokens' }, weight: 25 },
-  { id: 'tokens_25', label: '25', icon: '🪙', color: '#f59e0b', reward: { type: 'tokens', value: 25, displayValue: '+25 Tokens' }, weight: 20 },
+  { id: 'tokens_10', label: '10', icon: '🪙', color: '#fbbf24', reward: { type: 'tokens', value: 10, displayValue: '+10 Tokens' }, weight: 22 },
+  { id: 'tokens_25', label: '25', icon: '🪙', color: '#f59e0b', reward: { type: 'tokens', value: 25, displayValue: '+25 Tokens' }, weight: 18 },
   { id: 'tokens_50', label: '50', icon: '💰', color: '#d97706', reward: { type: 'tokens', value: 50, displayValue: '+50 Tokens' }, weight: 10 },
   { id: 'tokens_100', label: '100', icon: '💎', color: '#22c55e', reward: { type: 'tokens', value: 100, displayValue: '+100 Tokens' }, weight: 5 },
-  { id: 'power_peek', label: 'PEEK', icon: '👁️', color: '#3b82f6', reward: { type: 'power_up', value: 'peek', displayValue: 'Ghost Peek!' }, weight: 15 },
+  { id: 'power_peek', label: 'PEEK', icon: '👁️', color: '#3b82f6', reward: { type: 'power_up', value: 'peek', displayValue: 'Ghost Peek!' }, weight: 12 },
   { id: 'power_shield', label: 'SHIELD', icon: '🛡️', color: '#8b5cf6', reward: { type: 'power_up', value: 'shield', displayValue: 'Shield!' }, weight: 10 },
+  { id: 'pause_token', label: 'PAUSE', icon: '⏸️', color: '#a855f7', reward: { type: 'pause_token', value: 1, displayValue: '+1 Pause Token!' }, weight: 8 },
   { id: 'multiplier_2x', label: '2X', icon: '✨', color: '#ec4899', reward: { type: 'multiplier', value: 2, displayValue: '2x Next Win!' }, weight: 8 },
   { id: 'nothing', label: 'TRY AGAIN', icon: '😢', color: '#64748b', reward: { type: 'nothing', value: 0, displayValue: 'Nothing...' }, weight: 7 },
 ];

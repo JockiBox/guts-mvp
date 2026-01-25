@@ -10,7 +10,7 @@ interface ComboNotificationProps {
 
 export function ComboNotification({ combo, onComplete }: ComboNotificationProps) {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 3000);
+    const timer = setTimeout(onComplete, 2000);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -106,7 +106,7 @@ interface ComboStackProps {
 
 export function ComboStack({ combos, onComplete }: ComboStackProps) {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 2000 + combos.length * 500);
+    const timer = setTimeout(onComplete, 2000);
     return () => clearTimeout(timer);
   }, [combos, onComplete]);
 

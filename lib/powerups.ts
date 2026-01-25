@@ -9,6 +9,7 @@ export type PowerUpType =
   | 'freeze'      // Prevent ghost hand from being added
   | 'lucky_draw'  // Redraw one of your cards
   | 'third_card'  // Get 3 cards, drop 1, play with best 2
+  | 'time_extender' // Add +5 seconds to pause timer
 
 export interface PowerUp {
   type: PowerUpType;
@@ -83,6 +84,14 @@ export const POWER_UPS: Record<PowerUpType, PowerUp> = {
     icon: '🃏',
     cost: 50,
     rarity: 'legendary',
+  },
+  time_extender: {
+    type: 'time_extender',
+    name: 'Time Extender',
+    description: 'Add +5 seconds to your pause timer',
+    icon: '⏱️',
+    cost: 15,
+    rarity: 'common',
   },
 };
 

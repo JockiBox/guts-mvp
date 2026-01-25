@@ -10,7 +10,7 @@ interface GhostStoryOverlayProps {
 
 export function GhostStoryOverlay({ story, onComplete }: GhostStoryOverlayProps) {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 3000);
+    const timer = setTimeout(onComplete, 2000);
     return () => clearTimeout(timer);
   }, [onComplete]);
 

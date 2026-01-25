@@ -290,7 +290,7 @@ interface AchievementUnlockProps {
 
 export function AchievementUnlockNotification({ achievement, onClose }: AchievementUnlockProps) {
   useEffect(() => {
-    const timer = setTimeout(onClose, 4000);
+    const timer = setTimeout(onClose, 2000);
     return () => clearTimeout(timer);
   }, [onClose]);
 
@@ -298,16 +298,16 @@ export function AchievementUnlockNotification({ achievement, onClose }: Achievem
     <div
       style={{
         position: 'fixed',
-        top: '20px',
+        bottom: '180px',
         left: '50%',
         transform: 'translateX(-50%)',
-        zIndex: 9999,
-        animation: 'achievement-slide-in 0.5s ease-out',
+        zIndex: 500,
+        animation: 'achievement-slide-up 0.5s ease-out',
       }}
     >
       <style>{`
-        @keyframes achievement-slide-in {
-          0% { transform: translateX(-50%) translateY(-100px); opacity: 0; }
+        @keyframes achievement-slide-up {
+          0% { transform: translateX(-50%) translateY(100px); opacity: 0; }
           100% { transform: translateX(-50%) translateY(0); opacity: 1; }
         }
       `}</style>
