@@ -326,27 +326,35 @@ export function GameBoard() {
 
   // Helper to add tokens - works for both logged-in users and guests
   const addTokens = useCallback((amount: number) => {
+    console.log('[TOKENS] addTokens called:', { amount, isLoggedIn: !!user, currentLocalTokens: localTokens });
     if (user) {
       // Logged-in user: update database + local state
       updateTokens(amount);
     } else {
       // Guest: update localStorage + local state
+      const before = getGuestTokens();
       addGuestTokens(amount);
-      setLocalTokens(getGuestTokens());
+      const after = getGuestTokens();
+      console.log('[TOKENS] Guest add:', { before, after, amount });
+      setLocalTokens(after);
     }
-  }, [user, updateTokens]);
+  }, [user, updateTokens, localTokens]);
 
   // Helper to deduct tokens - works for both logged-in users and guests
   const deductTokens = useCallback((amount: number) => {
+    console.log('[TOKENS] deductTokens called:', { amount, isLoggedIn: !!user, currentLocalTokens: localTokens });
     if (user) {
       // Logged-in user: update database + local state
       updateTokens(-amount);
     } else {
       // Guest: update localStorage + local state
+      const before = getGuestTokens();
       deductGuestTokens(amount);
-      setLocalTokens(getGuestTokens());
+      const after = getGuestTokens();
+      console.log('[TOKENS] Guest deduct:', { before, after, amount });
+      setLocalTokens(after);
     }
-  }, [user, updateTokens]);
+  }, [user, updateTokens, localTokens]);
 
   // Handle emote from player
   const handleEmote = useCallback((emote: string) => {
@@ -442,6 +450,7 @@ export function GameBoard() {
 
   // Wrapper for startGame that deducts ante
   const handleStartGame = useCallback((numPlayers?: number) => {
+    console.log('[GAME] handleStartGame called - deducting 1 token ante');
     // Deduct 1 token ante for the human player (works for both logged-in and guests)
     deductTokens(1);
     startGame(numPlayers);
@@ -449,6 +458,7 @@ export function GameBoard() {
 
   // Wrapper for nextRound that deducts ante
   const handleNextRound = useCallback(() => {
+    console.log('[GAME] handleNextRound called - deducting 1 token ante');
     // Deduct 1 token ante for the human player (works for both logged-in and guests)
     deductTokens(1);
     nextRound();
