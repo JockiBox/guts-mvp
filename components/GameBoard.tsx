@@ -203,7 +203,7 @@ function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak:
 }
 
 export function GameBoard() {
-  const { user, loading: userLoading, canClaimDaily, fetchProfile, claimDaily, buyItem, purchaseTokens } = useUser();
+  const { user, loading: userLoading, canClaimDaily, fetchProfile, claimDaily, buyItem, purchaseTokens, updateTokens } = useUser();
   const { state, humanPlayer, startGame, resetToStart, makeHumanDecision, nextRound, playerCount, setPlayerCount, heartProfile, isProfileHearted, difficulty, setDifficulty, newAchievements, clearNewAchievements, setHumanTokens } = useGutsGame();
   const {
     players,
@@ -324,17 +324,29 @@ export function GameBoard() {
     setLocalTokens(getGuestTokens()); // Initialize from localStorage
   }, []);
 
-  // Helper to add tokens and update both localStorage and state
+  // Helper to add tokens - works for both logged-in users and guests
   const addTokens = useCallback((amount: number) => {
-    addGuestTokens(amount);
-    setLocalTokens(getGuestTokens());
-  }, []);
+    if (user) {
+      // Logged-in user: update database + local state
+      updateTokens(amount);
+    } else {
+      // Guest: update localStorage + local state
+      addGuestTokens(amount);
+      setLocalTokens(getGuestTokens());
+    }
+  }, [user, updateTokens]);
 
-  // Helper to deduct tokens and update both localStorage and state
+  // Helper to deduct tokens - works for both logged-in users and guests
   const deductTokens = useCallback((amount: number) => {
-    deductGuestTokens(amount);
-    setLocalTokens(getGuestTokens());
-  }, []);
+    if (user) {
+      // Logged-in user: update database + local state
+      updateTokens(-amount);
+    } else {
+      // Guest: update localStorage + local state
+      deductGuestTokens(amount);
+      setLocalTokens(getGuestTokens());
+    }
+  }, [user, updateTokens]);
 
   // Handle emote from player
   const handleEmote = useCallback((emote: string) => {
@@ -352,20 +364,15 @@ export function GameBoard() {
 
   // Handle side bet placement
   const handlePlaceSideBet = useCallback((bet: SideBet) => {
-    const currentTokens = user?.tokens ?? localTokens;
+    const currentTokens = localTokens;
     const result = placeSideBet(activeSideBets, bet, currentTokens);
     if (result.success) {
       setActiveSideBets(result.updatedBets);
-      // Deduct tokens
-      if (user) {
-        // For logged in users, would need to sync with backend
-      } else {
-        deductTokens(bet.amount);
-      }
+      deductTokens(bet.amount); // Deduct for all players
       return { success: true };
     }
     return { success: false, error: result.error };
-  }, [activeSideBets, user, localTokens, deductTokens]);
+  }, [activeSideBets, localTokens, deductTokens]);
 
   // Handle theme change
   const handleThemeChange = useCallback((theme: TableTheme) => {
@@ -374,42 +381,29 @@ export function GameBoard() {
 
   // Handle theme purchase
   const handleThemePurchase = useCallback((cost: number) => {
-    if (user) {
-      // Would need backend integration
+    if (localTokens >= cost) {
+      deductTokens(cost);
       return true;
-    } else {
-      if (localTokens >= cost) {
-        deductTokens(cost);
-        return true;
-      }
     }
     return false;
-  }, [user, localTokens, deductTokens]);
+  }, [localTokens, deductTokens]);
 
   // Handle power-up purchase
   const handlePowerUpPurchase = useCallback((type: PowerUpType, cost: number) => {
-    if (user) {
-      // Would need backend integration
-    } else {
-      if (localTokens >= cost) {
-        const result = purchasePowerUp(type, localTokens);
-        if (result.success) {
-          deductTokens(cost);
-        }
+    if (localTokens >= cost) {
+      const result = purchasePowerUp(type, localTokens);
+      if (result.success) {
+        deductTokens(cost);
       }
     }
     playTokens();
-  }, [user, localTokens, deductTokens]);
+  }, [localTokens, deductTokens]);
 
   // Handle daily challenge reward claim
   const handleChallengeReward = useCallback((reward: number) => {
-    if (user) {
-      // Would need backend integration
-    } else {
-      addTokens(reward);
-    }
+    addTokens(reward); // Add reward for all players
     playTokens();
-  }, [user, addTokens]);
+  }, [addTokens]);
 
   // Handle taunt from player
   const handleTaunt = useCallback((taunt: Taunt, response: string | null) => {
@@ -507,11 +501,7 @@ export function GameBoard() {
         if (newAchievements.length > 0) {
           setGameAchievementPopup(newAchievements[0]);
           if (totalReward > 0) {
-            if (user) {
-              // Backend integration needed
-            } else {
-              addTokens(totalReward);
-            }
+            addTokens(totalReward); // Add reward for all players
           }
         }
         // Check theme unlocks
@@ -585,11 +575,7 @@ export function GameBoard() {
         // Calculate winnings
         const totalWinnings = results.reduce((sum, r) => sum + r.payout, 0);
         if (totalWinnings > 0) {
-          if (user) {
-            // Backend integration
-          } else {
-            addTokens(totalWinnings);
-          }
+          addTokens(totalWinnings); // Add winnings for all players
         }
 
         // Show results
@@ -603,7 +589,7 @@ export function GameBoard() {
         setShowConfetti(true);
       }
     }
-  }, [gamePhase, humanPlayer, winners, losers, ghostHands, pot, user, dailyProgress, activeSideBets, winStreak, players]);
+  }, [gamePhase, humanPlayer, winners, losers, ghostHands, pot, user, dailyProgress, activeSideBets, winStreak, players, addTokens]);
 
   // Sync user/guest tokens with game state
   useEffect(() => {
@@ -772,7 +758,7 @@ export function GameBoard() {
         checkModeUnlocks(loadAchievements().totalWins, currentTokens);
       }
     }
-  }, [gamePhase, humanPlayer, winners, losers, ghostHands, players, pot, user, winStreak, roundNumber]);
+  }, [gamePhase, humanPlayer, winners, losers, ghostHands, players, pot, user, winStreak, roundNumber, addTokens]);
 
   // Sign-up prompt for guests (every 5 rounds)
   useEffect(() => {
@@ -853,7 +839,7 @@ export function GameBoard() {
     if (gamePhase === 'decision') {
       gameResultRecorded.current = false;
     }
-  }, [gamePhase, humanPlayer, user, winners, losers, pot, potWon, fetchProfile]);
+  }, [gamePhase, humanPlayer, user, winners, losers, pot, potWon, fetchProfile, addTokens, deductTokens]);
 
   // Initialize sound state from localStorage
   useEffect(() => {
@@ -2901,11 +2887,7 @@ export function GameBoard() {
         onClose={() => setShowAvatarStore(false)}
         currentTokens={displayTokens}
         onPurchase={(cost) => {
-          if (user) {
-            // Logged in user - would update Supabase
-          } else {
-            deductTokens(cost);
-          }
+          deductTokens(cost); // Works for both logged-in users and guests
         }}
         avatar={playerAvatar}
         onAvatarChange={(newAvatar) => {
