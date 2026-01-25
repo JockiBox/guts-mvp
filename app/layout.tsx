@@ -1,19 +1,25 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { InstallPrompt } from '@/components/InstallPrompt';
 
 export const metadata: Metadata = {
   title: 'GUTS - The Card Game',
   description: 'Play GUTS - the ultimate high-stakes card game. Hold or drop, beat the ghost!',
   manifest: '/manifest.json',
+  applicationName: 'GUTS',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'GUTS',
+    startupImage: '/icon.svg',
+  },
+  formatDetection: {
+    telephone: false,
   },
   openGraph: {
     title: 'GUTS - The Card Game',
     description: 'Play GUTS - the ultimate high-stakes card game. Hold or drop, beat the ghost!',
-    url: 'https://guts-game.vercel.app',
+    url: 'https://gutsthegame.com',
     siteName: 'GUTS',
     type: 'website',
   },
@@ -25,6 +31,10 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.svg',
     apple: '/icon.svg',
+    shortcut: '/favicon.svg',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
   },
 };
 
@@ -47,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="antialiased min-h-screen">
         {children}
+        <InstallPrompt />
         <script
           dangerouslySetInnerHTML={{
             __html: `

@@ -2,35 +2,56 @@
   "name": "GUTS - The Card Game",
   "short_name": "GUTS",
   "description": "Play GUTS - the ultimate high-stakes card game. Hold or drop, beat the ghost!",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#14b8a6",
   "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/favicon.svg",
-      "sizes": "32x32",
+      "sizes": "32x32 48x48",
       "type": "image/svg+xml"
     }
   ],
-  "categories": ["games", "entertainment"],
+  "categories": ["games", "entertainment", "casino"],
   "shortcuts": [
     {
       "name": "Play Now",
-      "url": "/",
-      "description": "Start playing GUTS"
+      "short_name": "Play",
+      "url": "/?action=play",
+      "description": "Start a new game of GUTS",
+      "icons": [{ "src": "/icon.svg", "sizes": "96x96" }]
     },
     {
       "name": "Leaderboard",
+      "short_name": "Leaders",
       "url": "/leaderboard",
       "description": "View top players"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "/icon.svg",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "GUTS Game"
+    }
+  ],
+  "display_override": ["standalone", "minimal-ui"],
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }
