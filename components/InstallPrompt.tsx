@@ -11,35 +11,51 @@ export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [isSafari, setIsSafari] = useState(false);
 
   useEffect(() => {
-    // Check if already installed
-    const standalone = window.matchMedia('(display-mode: standalone)').matches;
+    // Check if already installed (works for both iOS and Android)
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
     setIsStandalone(standalone);
 
-    // Check if iOS
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    setIsIOS(iOS);
+    // Detect platform
+    const userAgent = navigator.userAgent.toLowerCase();
+    const iOS = /iphone|ipad|ipod/.test(userAgent);
+    const android = /android/.test(userAgent);
+    const safari = /safari/.test(userAgent) && !/chrome|crios|fxios/.test(userAgent);
 
-    // Listen for install prompt (Android/Desktop)
+    setIsIOS(iOS);
+    setIsAndroid(android);
+    setIsSafari(safari);
+
+    // Listen for install prompt (Android/Desktop Chrome)
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
 
       // Show prompt after a delay if not dismissed before
       const dismissed = localStorage.getItem('install-prompt-dismissed');
-      if (!dismissed) {
+      const dismissedTime = localStorage.getItem('install-prompt-dismissed-time');
+      const dayInMs = 24 * 60 * 60 * 1000;
+
+      // Show again after 7 days
+      if (!dismissed || (dismissedTime && Date.now() - parseInt(dismissedTime) > 7 * dayInMs)) {
         setTimeout(() => setShowPrompt(true), 3000);
       }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
 
-    // Show iOS prompt after delay
-    if (iOS && !standalone) {
+    // Show iOS prompt after delay (only in Safari)
+    if (iOS && safari && !standalone) {
       const dismissed = localStorage.getItem('install-prompt-dismissed');
-      if (!dismissed) {
+      const dismissedTime = localStorage.getItem('install-prompt-dismissed-time');
+      const dayInMs = 24 * 60 * 60 * 1000;
+
+      if (!dismissed || (dismissedTime && Date.now() - parseInt(dismissedTime) > 7 * dayInMs)) {
         setTimeout(() => setShowPrompt(true), 5000);
       }
     }
@@ -63,9 +79,19 @@ export function InstallPrompt() {
   const handleDismiss = () => {
     setShowPrompt(false);
     localStorage.setItem('install-prompt-dismissed', 'true');
+    localStorage.setItem('install-prompt-dismissed-time', Date.now().toString());
   };
 
   if (!showPrompt || isStandalone) return null;
+
+  // iOS Safari share icon SVG
+  const ShareIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16,6 12,2 8,6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  );
 
   return (
     <div
@@ -80,7 +106,7 @@ export function InstallPrompt() {
         border: '2px solid #14b8a6',
         boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(20, 184, 166, 0.3)',
         zIndex: 9999,
-        maxWidth: '340px',
+        maxWidth: '360px',
         width: 'calc(100% - 40px)',
         animation: 'slide-up 0.4s ease-out',
       }}
@@ -120,20 +146,26 @@ export function InstallPrompt() {
               marginBottom: '4px',
             }}
           >
-            Install GUTS
+            {isIOS ? 'Add GUTS to Home Screen' : 'Install GUTS App'}
           </h3>
-          <p
-            style={{
-              color: '#94a3b8',
-              fontSize: '13px',
-              margin: 0,
-              lineHeight: 1.4,
-            }}
-          >
-            {isIOS
-              ? 'Tap the share button, then "Add to Home Screen"'
-              : 'Add to your home screen for the best experience'}
-          </p>
+          {isIOS ? (
+            <div style={{ color: '#94a3b8', fontSize: '13px', lineHeight: 1.5 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                <span>1. Tap</span>
+                <span style={{ color: '#60a5fa', display: 'flex', alignItems: 'center' }}>
+                  <ShareIcon />
+                </span>
+                <span>in Safari</span>
+              </div>
+              <div>2. Scroll down, tap <strong style={{ color: '#14b8a6' }}>&quot;Add to Home Screen&quot;</strong></div>
+            </div>
+          ) : (
+            <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0, lineHeight: 1.4 }}>
+              {isAndroid
+                ? 'Install for quick access and offline play!'
+                : 'Add to your home screen for the best experience'}
+            </p>
+          )}
         </div>
 
         {/* Close button */}
@@ -153,6 +185,23 @@ export function InstallPrompt() {
         </button>
       </div>
 
+      {/* Features for Android/Desktop */}
+      {!isIOS && (
+        <div style={{
+          display: 'flex',
+          gap: '16px',
+          marginTop: '10px',
+          padding: '8px 0',
+          borderTop: '1px solid rgba(51, 65, 85, 0.5)',
+          fontSize: '11px',
+          color: '#94a3b8',
+        }}>
+          <span>✓ Offline play</span>
+          <span>✓ Home screen icon</span>
+          <span>✓ Full screen</span>
+        </div>
+      )}
+
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
         {!isIOS && deferredPrompt && (
@@ -163,31 +212,37 @@ export function InstallPrompt() {
               background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
               border: 'none',
               borderRadius: '10px',
-              padding: '10px 16px',
+              padding: '12px 16px',
               color: 'white',
               fontWeight: 'bold',
               fontSize: '14px',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
             }}
           >
-            Install App
+            <span style={{ fontSize: '18px' }}>📲</span>
+            Install Now
           </button>
         )}
         <button
           onClick={handleDismiss}
           style={{
             flex: isIOS || !deferredPrompt ? 1 : 0,
+            minWidth: isIOS ? 'auto' : '80px',
             background: 'rgba(51, 65, 85, 0.5)',
             border: '1px solid #475569',
             borderRadius: '10px',
-            padding: '10px 16px',
+            padding: '12px 16px',
             color: '#94a3b8',
             fontWeight: '600',
             fontSize: '14px',
             cursor: 'pointer',
           }}
         >
-          {isIOS ? 'Got it' : 'Not now'}
+          {isIOS ? 'Got it!' : 'Later'}
         </button>
       </div>
     </div>

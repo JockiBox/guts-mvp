@@ -1,10 +1,17 @@
-// GUTS Service Worker
-const CACHE_NAME = 'guts-cache-v1';
+// GUTS Service Worker - v2 with better offline support
+const CACHE_NAME = 'guts-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
   '/icon.svg',
   '/favicon.svg',
+  '/apple-touch-icon.png',
+  '/favicon-32x32.png',
+  '/favicon-16x16.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
+  '/icons/icon-144x144.png',
+  '/icons/icon-152x152.png',
 ];
 
 // Install event - cache essential assets
