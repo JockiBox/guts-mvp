@@ -14,23 +14,26 @@ interface GhostHandProps {
 }
 
 export function GhostHand({ ghost, index, isWinner, showCards, isNew, compact }: GhostHandProps) {
+  // Always use compact sizing to fit more ghosts
+  const useCompact = true;
+
   return (
     <div
       style={{
         position: 'relative',
         background: 'linear-gradient(135deg, rgba(88, 28, 135, 0.4), rgba(139, 92, 246, 0.2), rgba(88, 28, 135, 0.4))',
-        borderRadius: compact ? 12 : 16,
-        padding: compact ? 8 : 14,
+        borderRadius: 10,
+        padding: compact ? 6 : 8,
         border: isWinner
-          ? '3px solid #fbbf24'
-          : '2px solid rgba(168, 85, 247, 0.6)',
+          ? '2px solid #fbbf24'
+          : '1px solid rgba(168, 85, 247, 0.6)',
         boxShadow: isWinner
-          ? '0 0 30px rgba(251, 191, 36, 0.6), 0 0 60px rgba(251, 191, 36, 0.3), inset 0 0 20px rgba(251, 191, 36, 0.1)'
-          : '0 0 25px rgba(168, 85, 247, 0.5), 0 0 50px rgba(139, 92, 246, 0.3), inset 0 0 30px rgba(139, 92, 246, 0.1)',
+          ? '0 0 20px rgba(251, 191, 36, 0.5), inset 0 0 10px rgba(251, 191, 36, 0.1)'
+          : '0 0 15px rgba(168, 85, 247, 0.4), inset 0 0 15px rgba(139, 92, 246, 0.1)',
         animation: isNew
           ? 'ghost-entrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)'
           : 'ghost-hover 3s ease-in-out infinite',
-        transform: compact ? 'scale(0.85)' : 'translateY(0)',
+        transform: compact ? 'scale(0.75)' : 'scale(0.85)',
         transformOrigin: 'center center',
       }}
     >
@@ -81,14 +84,14 @@ export function GhostHand({ ghost, index, isWinner, showCards, isNew, compact }:
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
+            gap: 4,
           }}
         >
           <span
             style={{
-              fontSize: 20,
+              fontSize: 14,
               animation: 'ghost-wobble 2s ease-in-out infinite',
-              filter: 'drop-shadow(0 0 8px rgba(168, 85, 247, 0.8))',
+              filter: 'drop-shadow(0 0 6px rgba(168, 85, 247, 0.8))',
             }}
           >
             👻
@@ -97,31 +100,17 @@ export function GhostHand({ ghost, index, isWinner, showCards, isNew, compact }:
             style={{
               color: '#e9d5ff',
               fontWeight: 'bold',
-              fontSize: 13,
-              textShadow: '0 0 10px rgba(168, 85, 247, 0.8)',
-              letterSpacing: '1px',
+              fontSize: 10,
+              textShadow: '0 0 8px rgba(168, 85, 247, 0.8)',
+              letterSpacing: '0.5px',
             }}
           >
-            GHOST #{index + 1}
+            #{index + 1}
           </span>
         </div>
 
-        {/* Danger indicator */}
-        <div
-          style={{
-            fontSize: 9,
-            color: '#f87171',
-            fontWeight: 'bold',
-            textTransform: 'uppercase',
-            letterSpacing: '2px',
-            animation: 'blink 1s ease-in-out infinite',
-          }}
-        >
-          ⚠️ DANGER ⚠️
-        </div>
-
         {/* Cards */}
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 3 }}>
           {ghost.cards.map((card, idx) => (
             <div
               key={idx}

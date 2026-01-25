@@ -5,10 +5,11 @@ export interface ShopItem {
   name: string;
   description: string;
   price: number; // in tokens
-  type: 'avatar' | 'theme' | 'effect' | 'vip';
-  value: string; // emoji for avatar, theme id for theme, etc.
+  type: 'avatar' | 'theme' | 'effect' | 'vip' | 'powerup';
+  value: string; // emoji for avatar, theme id for theme, powerup type for powerups, etc.
   icon: string;
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  quantity?: number; // For powerup packs
 }
 
 export interface TokenPackage {
@@ -132,6 +133,33 @@ export const VIP_PACKAGES: ShopItem[] = [
     icon: '🥇',
     rarity: 'legendary',
   },
+];
+
+// Power-up packages
+export const POWERUP_PACKAGES: ShopItem[] = [
+  // Starter packs
+  { id: 'pu_peek_3', name: 'Ghost Peek x3', description: 'See one ghost card before deciding', price: 25, type: 'powerup', value: 'peek', icon: '👁️', rarity: 'common', quantity: 3 },
+  { id: 'pu_swap_3', name: 'Card Swap x3', description: 'Exchange one card with the deck', price: 50, type: 'powerup', value: 'swap', icon: '🔄', rarity: 'common', quantity: 3 },
+  { id: 'pu_lucky_3', name: 'Lucky Draw x3', description: 'Redraw one of your cards', price: 40, type: 'powerup', value: 'lucky_draw', icon: '🍀', rarity: 'common', quantity: 3 },
+
+  // Value packs
+  { id: 'pu_double_5', name: 'Double Down x5', description: 'Double winnings if you win', price: 100, type: 'powerup', value: 'double_down', icon: '💰', rarity: 'rare', quantity: 5 },
+  { id: 'pu_shield_5', name: 'Shield x5', description: 'Protect from matching pot once', price: 120, type: 'powerup', value: 'shield', icon: '🛡️', rarity: 'rare', quantity: 5 },
+  { id: 'pu_reveal_3', name: 'Mind Read x3', description: 'Force opponent to show cards early', price: 90, type: 'powerup', value: 'reveal', icon: '🔮', rarity: 'epic', quantity: 3 },
+
+  // Premium packs
+  { id: 'pu_freeze_3', name: 'Ghost Freeze x3', description: 'Prevent ghost hand from being added', price: 100, type: 'powerup', value: 'freeze', icon: '❄️', rarity: 'epic', quantity: 3 },
+  { id: 'pu_third_3', name: 'Third Card x3', description: 'Get 3 cards, drop 1, play best 2', price: 130, type: 'powerup', value: 'third_card', icon: '🃏', rarity: 'legendary', quantity: 3 },
+
+  // Mega bundles
+  { id: 'pu_starter_bundle', name: 'Starter Bundle', description: '2 of each common powerup (6 total)', price: 80, type: 'powerup', value: 'bundle_starter', icon: '📦', rarity: 'rare', quantity: 6 },
+  { id: 'pu_pro_bundle', name: 'Pro Bundle', description: '2 of each rare/epic powerup (8 total)', price: 250, type: 'powerup', value: 'bundle_pro', icon: '🎁', rarity: 'epic', quantity: 8 },
+  { id: 'pu_ultimate_bundle', name: 'Ultimate Bundle', description: '3 of EVERY powerup (24 total)', price: 500, type: 'powerup', value: 'bundle_ultimate', icon: '💎', rarity: 'legendary', quantity: 24 },
+
+  // Random mystery boxes
+  { id: 'pu_mystery_common', name: 'Mystery Box', description: 'Random common/rare powerup', price: 20, type: 'powerup', value: 'mystery_common', icon: '❓', rarity: 'common', quantity: 1 },
+  { id: 'pu_mystery_rare', name: 'Premium Mystery', description: 'Random rare/epic powerup', price: 60, type: 'powerup', value: 'mystery_rare', icon: '🎲', rarity: 'rare', quantity: 1 },
+  { id: 'pu_mystery_epic', name: 'Legendary Mystery', description: 'Random epic/legendary powerup', price: 100, type: 'powerup', value: 'mystery_epic', icon: '🌟', rarity: 'epic', quantity: 1 },
 ];
 
 // Get all shop items

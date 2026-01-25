@@ -7,6 +7,7 @@ import {
   THEME_SHOP,
   EFFECT_SHOP,
   VIP_PACKAGES,
+  POWERUP_PACKAGES,
   DAILY_REWARDS,
   formatPrice,
   getPackageTotal,
@@ -27,7 +28,7 @@ interface ShopModalProps {
   canClaimDaily: boolean;
 }
 
-type ShopTab = 'tokens' | 'avatars' | 'themes' | 'effects' | 'vip';
+type ShopTab = 'tokens' | 'powerups' | 'avatars' | 'themes' | 'effects' | 'vip';
 
 export function ShopModal({
   isOpen,
@@ -74,11 +75,13 @@ export function ShopModal({
     if (item.type === 'theme') return user.unlocked_themes.includes(item.value);
     if (item.type === 'effect') return user.unlocked_effects.includes(item.value);
     if (item.type === 'vip') return user.vip_level >= parseInt(item.value);
+    if (item.type === 'powerup') return false; // Power-ups are never "owned", they're consumable
     return false;
   };
 
   const tabs: { id: ShopTab; label: string; icon: string }[] = [
     { id: 'tokens', label: 'Tokens', icon: '🪙' },
+    { id: 'powerups', label: 'Power-Ups', icon: '⚡' },
     { id: 'avatars', label: 'Avatars', icon: '😎' },
     { id: 'themes', label: 'Themes', icon: '🎨' },
     { id: 'effects', label: 'Effects', icon: '✨' },
@@ -324,6 +327,7 @@ export function ShopModal({
               {(activeTab === 'avatars' ? AVATAR_SHOP :
                 activeTab === 'themes' ? THEME_SHOP :
                 activeTab === 'effects' ? EFFECT_SHOP :
+                activeTab === 'powerups' ? POWERUP_PACKAGES :
                 VIP_PACKAGES).map((item) => {
                   const owned = isOwned(item);
                   const canAfford = user && user.tokens >= item.price;
@@ -356,6 +360,11 @@ export function ShopModal({
                       <div style={{ color: '#cbd5e1', fontSize: '12px', fontWeight: '600', marginBottom: '2px' }}>
                         {item.name}
                       </div>
+                      {item.quantity && (
+                        <div style={{ color: '#4ade80', fontSize: '10px', fontWeight: '600', marginBottom: '2px' }}>
+                          x{item.quantity}
+                        </div>
+                      )}
                       <div
                         style={{
                           color: getRarityColor(item.rarity),

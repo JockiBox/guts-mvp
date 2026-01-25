@@ -28,6 +28,9 @@ export interface Player {
   heartsReceived?: number; // Total hearts this bot has received
   experienceLevel?: number; // Level based on hearts (0-10)
   levelBadge?: string; // Visual badge for level
+  // Game session powerup (resets each game)
+  sessionPowerUp?: string; // PowerUpType assigned for this game
+  sessionPowerUpUsed?: boolean; // Whether the powerup was used this game
 }
 
 export interface GhostHand {

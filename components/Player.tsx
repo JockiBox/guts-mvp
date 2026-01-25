@@ -3,6 +3,7 @@
 import { Player as PlayerType } from '@/lib/types';
 import { Card } from './Card';
 import { getHandDescription } from '@/lib/useGutsGame';
+import { POWER_UPS, type PowerUpType } from '@/lib/powerups';
 
 interface PlayerProps {
   player: PlayerType;
@@ -171,6 +172,30 @@ export function Player({ player, isWinner, isLoser, showCards, isHearted, onHear
             </span>
           )}
         </div>
+
+        {/* Session Power-up Badge */}
+        {player.sessionPowerUp && !player.sessionPowerUpUsed && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              padding: '2px 6px',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(139, 92, 246, 0.2))',
+              border: '1px solid rgba(168, 85, 247, 0.5)',
+              fontSize: '10px',
+            }}
+            title={`Power-up: ${POWER_UPS[player.sessionPowerUp as PowerUpType]?.name || 'Unknown'}`}
+          >
+            <span style={{ fontSize: '12px' }}>
+              {POWER_UPS[player.sessionPowerUp as PowerUpType]?.icon || '⚡'}
+            </span>
+            <span style={{ color: '#c4b5fd', fontWeight: '600' }}>
+              {player.isHuman ? 'Ready' : ''}
+            </span>
+          </div>
+        )}
 
         {/* Token Count */}
         <div

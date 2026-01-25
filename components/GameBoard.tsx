@@ -1093,6 +1093,9 @@ export function GameBoard() {
             onClose={() => setDailyRewardToast(null)}
           />
         )}
+
+        {/* Help Legend - Always visible */}
+        <HelpLegend />
       </>
     );
   }

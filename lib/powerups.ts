@@ -140,3 +140,96 @@ export function getPowerUpCount(type: PowerUpType): number {
   const inventory = loadPowerUpInventory();
   return inventory[type] || 0;
 }
+
+// Get all power-up types
+export function getAllPowerUpTypes(): PowerUpType[] {
+  return Object.keys(POWER_UPS) as PowerUpType[];
+}
+
+// Get a random power-up type
+export function getRandomPowerUp(): PowerUpType {
+  const types = getAllPowerUpTypes();
+  return types[Math.floor(Math.random() * types.length)];
+}
+
+// Get a random power-up weighted by rarity (common more likely)
+export function getRandomPowerUpWeighted(): PowerUpType {
+  const weights: Record<string, number> = {
+    common: 50,
+    rare: 30,
+    epic: 15,
+    legendary: 5,
+  };
+
+  const weightedTypes: PowerUpType[] = [];
+  for (const [type, powerUp] of Object.entries(POWER_UPS)) {
+    const weight = weights[powerUp.rarity] || 10;
+    for (let i = 0; i < weight; i++) {
+      weightedTypes.push(type as PowerUpType);
+    }
+  }
+
+  return weightedTypes[Math.floor(Math.random() * weightedTypes.length)];
+}
+
+// Store for game-session powerups (resets each game)
+const SESSION_POWERUP_KEY = 'guts_session_powerups';
+
+export interface SessionPowerUp {
+  playerId: string;
+  powerUp: PowerUpType;
+  used: boolean;
+}
+
+export function getSessionPowerUps(): SessionPowerUp[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = sessionStorage.getItem(SESSION_POWERUP_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveSessionPowerUps(powerUps: SessionPowerUp[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(SESSION_POWERUP_KEY, JSON.stringify(powerUps));
+  } catch (e) {
+    console.error('Failed to save session power-ups:', e);
+  }
+}
+
+// Assign random powerups to all players at game start
+export function assignGamePowerUps(playerIds: string[]): SessionPowerUp[] {
+  const powerUps: SessionPowerUp[] = playerIds.map(playerId => ({
+    playerId,
+    powerUp: getRandomPowerUpWeighted(),
+    used: false,
+  }));
+  saveSessionPowerUps(powerUps);
+  return powerUps;
+}
+
+// Get a player's session powerup
+export function getPlayerSessionPowerUp(playerId: string): SessionPowerUp | undefined {
+  const powerUps = getSessionPowerUps();
+  return powerUps.find(p => p.playerId === playerId);
+}
+
+// Mark a player's session powerup as used
+export function usePlayerSessionPowerUp(playerId: string): boolean {
+  const powerUps = getSessionPowerUps();
+  const idx = powerUps.findIndex(p => p.playerId === playerId && !p.used);
+  if (idx === -1) return false;
+
+  powerUps[idx].used = true;
+  saveSessionPowerUps(powerUps);
+  return true;
+}
+
+// Clear session powerups (called at game start)
+export function clearSessionPowerUps(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem(SESSION_POWERUP_KEY);
+}

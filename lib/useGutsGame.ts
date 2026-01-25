@@ -15,6 +15,7 @@ import { RANK_VALUES, SUIT_VALUES } from './types';
 import { AI_PROFILES, selectGameProfiles, getTrashTalk, loadProfileStats, saveProfileStats, loadHeartedProfiles, saveHeartedProfiles, incrementGamesPlayed as incrementProfileGamesPlayed, getExperienceBonus, getProfileLevel, getLevelDisplay, type AIProfile } from './profiles';
 import { loadDifficulty, saveDifficulty, getDifficultyConfig, type Difficulty } from './difficulty';
 import { updateStatsAfterRound, incrementGamesPlayed as incrementPlayerGames, type Achievement } from './stats';
+import { getRandomPowerUpWeighted, clearSessionPowerUps, POWER_UPS, type PowerUpType } from './powerups';
 
 const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
 const RANKS: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
@@ -231,7 +232,12 @@ function createInitialPlayers(playerCount: number = 5, currentProfileIds: string
   const players: Player[] = [];
   const stats = loadProfileStats();
 
+  // Clear any previous session powerups
+  clearSessionPowerUps();
+
   // Human player first (tokens will be synced from user profile or guest storage)
+  // Give them a random powerup for this game session
+  const humanPowerUp = getRandomPowerUpWeighted();
   players.push({
     id: 'player-0',
     name: 'You',
@@ -242,6 +248,8 @@ function createInitialPlayers(playerCount: number = 5, currentProfileIds: string
     personality: undefined,
     isActive: true,
     cardsRevealed: 0,
+    sessionPowerUp: humanPowerUp,
+    sessionPowerUpUsed: false,
   });
 
   // AI players using profiles - pass current IDs for cycling logic
@@ -252,6 +260,9 @@ function createInitialPlayers(playerCount: number = 5, currentProfileIds: string
     const profileStats = profile?.id ? stats.get(profile.id) : undefined;
     const heartsReceived = profileStats?.heartsReceived || 0;
     const levelInfo = getLevelDisplay(heartsReceived);
+
+    // Each AI bot gets a random powerup for this game
+    const aiPowerUp = getRandomPowerUpWeighted();
 
     players.push({
       id: `player-${i + 1}`,
@@ -270,6 +281,8 @@ function createInitialPlayers(playerCount: number = 5, currentProfileIds: string
       heartsReceived,
       experienceLevel: levelInfo.level,
       levelBadge: levelInfo.badge,
+      sessionPowerUp: aiPowerUp,
+      sessionPowerUpUsed: false,
     });
   }
 
