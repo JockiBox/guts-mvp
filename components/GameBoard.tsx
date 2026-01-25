@@ -440,23 +440,19 @@ export function GameBoard() {
     playClick();
   }, [user]);
 
-  // Wrapper for startGame that deducts ante from guestTokens
+  // Wrapper for startGame that deducts ante
   const handleStartGame = useCallback((numPlayers?: number) => {
-    // Deduct 1 token ante for the human player
-    if (!user) {
-      deductTokens(1);
-    }
+    // Deduct 1 token ante for the human player (works for both logged-in and guests)
+    deductTokens(1);
     startGame(numPlayers);
-  }, [user, startGame, deductTokens]);
+  }, [startGame, deductTokens]);
 
-  // Wrapper for nextRound that deducts ante from guestTokens
+  // Wrapper for nextRound that deducts ante
   const handleNextRound = useCallback(() => {
-    // Deduct 1 token ante for the human player
-    if (!user) {
-      deductTokens(1);
-    }
+    // Deduct 1 token ante for the human player (works for both logged-in and guests)
+    deductTokens(1);
     nextRound();
-  }, [user, nextRound, deductTokens]);
+  }, [nextRound, deductTokens]);
 
   // Generate bot rivalry messages occasionally
   useEffect(() => {
