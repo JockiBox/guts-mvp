@@ -35,21 +35,19 @@ export function PowerUpsBar({ onUsePowerUp, canUsePowerUps, activePowerUps }: Po
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
-        padding: '12px',
-        background: 'rgba(30, 41, 59, 0.95)',
-        borderRadius: '12px',
+        gap: '6px',
+        padding: '8px',
+        background: 'rgba(30, 41, 59, 0.9)',
+        borderRadius: '10px',
         border: '2px solid #334155',
+        maxWidth: '60px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-        <span style={{ fontSize: '16px' }}>⚡</span>
-        <span style={{ color: '#e2e8f0', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-          Power-Ups
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+        <span style={{ fontSize: '12px' }}>⚡</span>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {powerUpList.map((powerUp) => {
           const count = inventory[powerUp.type] || 0;
           const isActive = activePowerUps.includes(powerUp.type);
@@ -66,9 +64,9 @@ export function PowerUpsBar({ onUsePowerUp, canUsePowerUps, activePowerUps }: Po
                 onClick={() => handleUsePowerUp(powerUp.type)}
                 disabled={!canUse}
                 style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '10px',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
                   border: isActive
                     ? '2px solid #22c55e'
                     : canUse
@@ -83,7 +81,7 @@ export function PowerUpsBar({ onUsePowerUp, canUsePowerUps, activePowerUps }: Po
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '24px',
+                  fontSize: '20px',
                   transition: 'all 0.2s ease',
                   opacity: count === 0 ? 0.4 : 1,
                   position: 'relative',

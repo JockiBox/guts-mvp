@@ -42,49 +42,39 @@ export function TauntButtons({ onTaunt, targetBotName, targetBotPersonality, dis
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
-        padding: '10px',
-        background: 'rgba(30, 41, 59, 0.95)',
-        borderRadius: '12px',
+        gap: '6px',
+        padding: '8px',
+        background: 'rgba(30, 41, 59, 0.9)',
+        borderRadius: '10px',
         border: '2px solid #334155',
+        maxWidth: '60px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <span style={{ color: '#94a3b8', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold' }}>
-          Taunt {targetBotName}
-        </span>
-        {taunts.length > 4 && (
-          <button
-            onClick={() => setShowAll(!showAll)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#14b8a6',
-              fontSize: '10px',
-              cursor: 'pointer',
-            }}
-          >
-            {showAll ? 'Less' : `+${taunts.length - 4} more`}
-          </button>
-        )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ fontSize: '10px', color: '#94a3b8' }}>😤</span>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-        {displayTaunts.map((taunt) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {displayTaunts.slice(0, 4).map((taunt) => (
           <button
             key={taunt.id}
             onClick={() => handleTaunt(taunt)}
             disabled={disabled || cooldown}
             title={taunt.text}
             style={{
-              padding: '8px 12px',
+              padding: '6px',
               background: cooldown ? 'rgba(51, 65, 85, 0.3)' : 'rgba(51, 65, 85, 0.5)',
               border: '1px solid #475569',
-              borderRadius: '8px',
-              fontSize: '18px',
+              borderRadius: '6px',
+              fontSize: '16px',
               cursor: disabled || cooldown ? 'not-allowed' : 'pointer',
               opacity: disabled || cooldown ? 0.5 : 1,
               transition: 'all 0.2s ease',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             {taunt.emoji}
@@ -93,8 +83,8 @@ export function TauntButtons({ onTaunt, targetBotName, targetBotPersonality, dis
       </div>
 
       {cooldown && (
-        <div style={{ color: '#64748b', fontSize: '10px', textAlign: 'center' }}>
-          Cooldown...
+        <div style={{ color: '#64748b', fontSize: '8px', textAlign: 'center' }}>
+          ...
         </div>
       )}
     </div>

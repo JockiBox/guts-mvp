@@ -2432,16 +2432,9 @@ export function GameBoard() {
                 </div>
               </div>
 
-              {/* Power-ups and Side Bets Bar */}
+              {/* Side Bets and Emote Buttons - Inline */}
               {isDecisionPhase && !humanDecided && (
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'flex-start' }}>
-                  {/* Power-ups */}
-                  <PowerUpsBar
-                    onUsePowerUp={handleUsePowerUp}
-                    canUsePowerUps={true}
-                    activePowerUps={activePowerUps}
-                  />
-
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'flex-start', justifyContent: 'center' }}>
                   {/* Side Bets Button */}
                   <button
                     onClick={() => { playClick(); setShowSideBets(true); }}
@@ -2470,16 +2463,6 @@ export function GameBoard() {
 
                   {/* Emote Buttons */}
                   <EmoteButtons onEmote={handleEmote} />
-
-                  {/* Taunt Buttons - Only for logged in users */}
-                  {user && aiPlayers.length > 0 && (
-                    <TauntButtons
-                      onTaunt={handleTaunt}
-                      targetBotName={aiPlayers[0].name}
-                      targetBotPersonality="aggressive"
-                      disabled={!isDecisionPhase || humanDecided}
-                    />
-                  )}
                 </div>
               )}
 
@@ -2871,13 +2854,52 @@ export function GameBoard() {
         </div>
       )}
 
+      {/* Power-ups Bar - Fixed Left Edge */}
+      {isDecisionPhase && !humanDecided && (
+        <div
+          style={{
+            position: 'fixed',
+            left: '8px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 100,
+          }}
+        >
+          <PowerUpsBar
+            onUsePowerUp={handleUsePowerUp}
+            canUsePowerUps={true}
+            activePowerUps={activePowerUps}
+          />
+        </div>
+      )}
+
+      {/* Taunt Buttons - Fixed Right Edge */}
+      {isDecisionPhase && !humanDecided && user && aiPlayers.length > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            right: '8px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 100,
+          }}
+        >
+          <TauntButtons
+            onTaunt={handleTaunt}
+            targetBotName={aiPlayers[0].name}
+            targetBotPersonality="aggressive"
+            disabled={!isDecisionPhase || humanDecided}
+          />
+        </div>
+      )}
+
       {/* Revenge Target Indicator */}
       {revengeTarget && gamePhase === 'decision' && (
         <div
           style={{
             position: 'fixed',
             bottom: '280px',
-            right: '16px',
+            right: '8px',
             background: 'rgba(239, 68, 68, 0.2)',
             borderRadius: '12px',
             padding: '12px 16px',
