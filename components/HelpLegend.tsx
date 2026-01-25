@@ -14,8 +14,8 @@ export function HelpLegend({ isExpanded: initialExpanded = false }: HelpLegendPr
     <div
       style={{
         position: 'fixed',
-        bottom: '80px',
-        right: '16px',
+        top: '70px',
+        right: '8px',
         zIndex: 9999,
       }}
     >
@@ -24,23 +24,24 @@ export function HelpLegend({ isExpanded: initialExpanded = false }: HelpLegendPr
         <button
           onClick={() => setIsExpanded(true)}
           style={{
-            width: '48px',
-            height: '48px',
+            width: '36px',
+            height: '36px',
             borderRadius: '50%',
             background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
             border: '2px solid #60a5fa',
             color: 'white',
-            fontSize: '24px',
+            fontSize: '18px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)',
             transition: 'transform 0.2s',
+            opacity: 0.8,
           }}
           title="Game Help"
         >
-          ❓
+          ?
         </button>
       )}
 
@@ -49,11 +50,11 @@ export function HelpLegend({ isExpanded: initialExpanded = false }: HelpLegendPr
         <div
           style={{
             background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98))',
-            borderRadius: '16px',
+            borderRadius: '12px',
             border: '2px solid #3b82f6',
-            padding: '16px',
-            width: '320px',
-            maxHeight: '80vh',
+            padding: '12px',
+            width: '280px',
+            maxHeight: '70vh',
             overflowY: 'auto',
             boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
           }}

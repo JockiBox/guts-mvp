@@ -30,9 +30,9 @@ export function GhostHand({ ghost, index, isWinner, showCards, isNew, compact }:
         animation: isNew
           ? 'ghost-entrance 0.5s ease-out'
           : undefined,
-        transform: 'scale(0.65)',
+        transform: 'scale(1.0)',
         transformOrigin: 'center center',
-        margin: '-8px',
+        margin: '0px',
       }}
     >
       <div
@@ -95,11 +95,11 @@ export function GhostHand({ ghost, index, isWinner, showCards, isNew, compact }:
         @keyframes ghost-entrance {
           0% {
             opacity: 0;
-            transform: scale(0.3);
+            transform: scale(0.5);
           }
           100% {
             opacity: 1;
-            transform: scale(0.65);
+            transform: scale(1.0);
           }
         }
       `}</style>

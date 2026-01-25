@@ -67,16 +67,16 @@ export function Pot({ amount, ghostHands, winners, showGhostCards }: PotProps) {
         <div style={{ fontSize: 12, color: '#94a3b8' }}>POT</div>
       </div>
 
-      {/* Ghost Hands - Compact row below pot */}
+      {/* Ghost Hands - Row below pot */}
       {ghostHands.length > 0 && (
         <div
           style={{
             display: 'flex',
-            gap: 2,
+            gap: 8,
             flexWrap: 'wrap',
             justifyContent: 'center',
-            maxWidth: 280,
-            marginTop: -8,
+            maxWidth: 400,
+            marginTop: 4,
           }}
         >
           {ghostHands.map((ghost, idx) => (
