@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "GUTS - The Card Game",
   "short_name": "GUTS",
   "description": "Play GUTS - the ultimate high-stakes card game. Hold or drop, beat the ghost!",
@@ -60,7 +61,23 @@
       "type": "image/svg+xml"
     }
   ],
-  "categories": ["games", "entertainment", "casino"],
+  "screenshots": [
+    {
+      "src": "/screenshots/screenshot-narrow.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "GUTS gameplay on mobile"
+    },
+    {
+      "src": "/screenshots/screenshot-wide.png",
+      "sizes": "720x540",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "GUTS gameplay on tablet"
+    }
+  ],
+  "categories": ["games", "entertainment"],
   "shortcuts": [
     {
       "name": "Play Now",
@@ -73,20 +90,11 @@
       "name": "Leaderboard",
       "short_name": "Leaders",
       "url": "/leaderboard",
-      "description": "View top players"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "GUTS Game"
+      "description": "View top players",
+      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png" }]
     }
   ],
   "display_override": ["standalone", "minimal-ui"],
-  "handle_links": "preferred",
   "launch_handler": {
     "client_mode": "navigate-existing"
   }
