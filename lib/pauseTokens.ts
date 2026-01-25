@@ -41,8 +41,8 @@ export function savePauseTokens(state: PauseTokenState): void {
   }
 }
 
-// Use a pause token
-export function usePauseToken(): boolean {
+// Consume a pause token
+export function consumePauseToken(): boolean {
   const state = loadPauseTokens();
   if (state.tokens <= 0) return false;
 

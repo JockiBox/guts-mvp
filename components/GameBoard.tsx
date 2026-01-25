@@ -87,7 +87,7 @@ import { checkCombos, resetSessionCombos, Combo } from '@/lib/comboBonuses';
 import { GAME_MODES, GameMode, GameModeType, loadUnlockedModes, checkModeUnlocks, getMode } from '@/lib/gameModes';
 import { Taunt, getBotTauntResponse } from '@/lib/taunts';
 import { checkLuckyNumber, getLuckyNumber } from '@/lib/luckyNumbers';
-import { loadPauseTokens, usePauseToken, checkPauseTokenReward, getPauseTokenCount, getPauseDuration, addPauseTokens } from '@/lib/pauseTokens';
+import { loadPauseTokens, consumePauseToken, checkPauseTokenReward, getPauseTokenCount, getPauseDuration, addPauseTokens } from '@/lib/pauseTokens';
 import { getReactionForSituation, getWinReaction, getLoseReaction } from '@/lib/botReactions';
 import { PlayerAvatar } from './PlayerAvatar';
 import { AvatarStore } from './AvatarStore';
@@ -2544,7 +2544,7 @@ export function GameBoard() {
                   {/* PAUSE BUTTON */}
                   <button
                     onClick={() => {
-                      if (pauseTokens > 0 && usePauseToken()) {
+                      if (pauseTokens > 0 && consumePauseToken()) {
                         playClick();
                         setIsPaused(true);
                         setPauseTokens(prev => prev - 1);
