@@ -395,91 +395,82 @@ export function useGutsGame() {
       const allHands = [...playerHands, ...ghostHandsData];
 
       if (allHands.length === 0) {
-        return prev;
+        // No one held - pot stays for next round
+        return {
+          ...prev,
+          potWon: 0,
+          winners: [],
+          losers: [],
+          roundResult: 'Everyone dropped! Pot stays for next round.',
+          gamePhase: 'summary',
+        };
       }
 
-      // Find the highest hand value
+      // Find the highest hand value (with suit tiebreaker, there's only one winner)
       const maxValue = Math.max(...allHands.map(h => h.value));
-      const winningHands = allHands.filter(h => h.value === maxValue);
-      const losingHands = allHands.filter(h => h.value < maxValue);
+      const winner = allHands.find(h => h.value === maxValue)!;
+      const losers = allHands.filter(h => h.value < maxValue);
 
-      const winnerIds = winningHands.map(h => h.id);
-      // Only players can be "losers" (ghosts don't pay)
-      const loserIds = losingHands.filter(h => !h.isGhost).map(h => h.id);
+      const ghostWon = winner.isGhost;
+      const playerWon = !winner.isGhost;
 
-      // Check if any ghost is among the winners (tied or outright)
-      const ghostInWinners = winningHands.some(h => h.isGhost);
-      // Check if any player is among the winners
-      const playerInWinners = winningHands.some(h => !h.isGhost);
+      // Losers are all players who held but didn't win (ghosts don't pay)
+      const loserIds = losers.filter(h => !h.isGhost).map(h => h.id);
 
-      // GHOST ALWAYS WINS TIES - if ghost has same hand, ghost wins
-      // Player only wins if they STRICTLY beat all ghosts (no ties)
-      const ghostWon = ghostInWinners; // Ghost wins if tied OR ahead
-      const playerBeatsAllGhosts = playerInWinners && !ghostInWinners;
-
-      // In a tie, players who tied with ghost are now LOSERS
-      const tiedWithGhost = ghostInWinners && playerInWinners;
-      const actualLoserIds = tiedWithGhost
-        ? [...loserIds, ...winningHands.filter(h => !h.isGhost).map(h => h.id)]
-        : loserIds;
-
-      let newPot = 0;
+      // Calculate what losers pay - they match the pot
+      let loserPayments = 0;
       const newPlayers = prev.players.map(p => {
-        if (actualLoserIds.includes(p.id)) {
-          // All losers who held must match the pot
-          // If ghost won (including ties), they DOUBLE the pot
-          const multiplier = ghostWon ? 2 : 1;
-          const tokensToLose = Math.min(p.tokens, prev.pot * multiplier);
-          newPot += tokensToLose;
-          return { ...p, tokens: p.tokens - tokensToLose, isActive: p.tokens - tokensToLose > 0 };
+        if (loserIds.includes(p.id)) {
+          // Loser matches the pot
+          const tokensToLose = Math.min(p.tokens, prev.pot);
+          loserPayments += tokensToLose;
+          return {
+            ...p,
+            tokens: p.tokens - tokensToLose,
+            isActive: p.tokens - tokensToLose > 0,
+          };
         }
-        if (winnerIds.includes(p.id) && playerBeatsAllGhosts) {
-          // Player won outright - takes the pot (split if multiple player winners)
-          const playerWinners = winningHands.filter(h => !h.isGhost).length;
-          const share = Math.floor(prev.pot / playerWinners);
-          return { ...p, tokens: p.tokens + share };
+        if (p.id === winner.id && playerWon) {
+          // Player won - takes the entire pot
+          return { ...p, tokens: p.tokens + prev.pot };
         }
         return p;
       });
 
-      // GHOST PERSISTENCE RULE:
-      // Ghost hands ONLY clear when a player STRICTLY beats ALL ghost hands
-      // If any ghost wins or ties with the best hand, ALL ghosts stay
-      const newGhostHands = playerBeatsAllGhosts ? [] : prev.ghostHands;
+      // Determine new pot
+      let newPot: number;
+      let resultMessage: string;
 
-      // Build result message
-      let resultMessage = '';
-      if (ghostWon && !playerBeatsAllGhosts) {
-        // Ghost won (either outright or by tie-breaker)
-        const winningGhost = prev.ghostHands.find(g => winnerIds.includes(g.id));
-        const tieNote = tiedWithGhost ? ' (Ghost wins ties!)' : '';
-        resultMessage = `Ghost wins with ${getHandDescription(winningGhost?.cards || [])}!${tieNote} Losers DOUBLE the pot!`;
-        newPot = prev.pot + newPot;
-      } else if (playerBeatsAllGhosts) {
-        // Player beat everyone including all ghosts
-        const winnerNames = winningHands
-          .filter(h => !h.isGhost)
-          .map(h => h.name)
-          .join(' & ');
+      if (ghostWon) {
+        // Ghost won - pot stays plus losers' payments
+        newPot = prev.pot + loserPayments;
+        const winningGhost = prev.ghostHands.find(g => g.id === winner.id);
+        resultMessage = `👻 Ghost wins with ${getHandDescription(winningGhost?.cards || [])}! Pot stays at ${newPot}.`;
+      } else {
+        // Player won - they take pot, losers' payments become new pot
+        newPot = loserPayments;
         const ghostCount = prev.ghostHands.length;
         if (ghostCount > 0) {
-          resultMessage = `${winnerNames} beats ${ghostCount} ghost hand${ghostCount > 1 ? 's' : ''} and wins ${prev.pot} tokens!`;
+          resultMessage = `${winner.name} beats the ghost and wins ${prev.pot} tokens!`;
         } else {
-          resultMessage = `${winnerNames} wins ${prev.pot} tokens!`;
+          resultMessage = `${winner.name} wins ${prev.pot} tokens!`;
         }
-        if (losingHands.filter(h => !h.isGhost).length > 0) {
-          resultMessage += ` Losers match the pot.`;
+        if (loserIds.length > 0) {
+          resultMessage += ` Losers match the pot (${loserPayments} tokens).`;
         }
       }
+
+      // Ghost hands clear only when a player wins
+      const newGhostHands = playerWon ? [] : prev.ghostHands;
 
       return {
         ...prev,
         players: newPlayers,
         pot: newPot,
-        potWon: playerBeatsAllGhosts ? prev.pot : 0, // Track what was won
+        potWon: playerWon ? prev.pot : 0,
         ghostHands: newGhostHands,
-        winners: playerBeatsAllGhosts ? winnerIds.filter(id => !id.startsWith('ghost')) : [],
-        losers: actualLoserIds,
+        winners: playerWon ? [winner.id] : [],
+        losers: loserIds,
         roundResult: resultMessage,
         gamePhase: 'summary',
       };
@@ -635,13 +626,42 @@ export function useGutsGame() {
       } else if (!countdownProcessedRef.current) {
         countdownProcessedRef.current = true;
         makeAIDecisions();
+
         // Set human to drop if no decision made
-        setState(prev => ({
-          ...prev,
-          players: prev.players.map(p =>
-            p.isHuman && !p.decision ? { ...p, decision: 'drop' } : p
-          ),
-        }));
+        setState(prev => {
+          const updatedPlayers = prev.players.map(p =>
+            p.isHuman && !p.decision ? { ...p, decision: 'drop' as Decision } : p
+          );
+
+          // Check if everyone held
+          const activePlayers = updatedPlayers.filter(p => p.isActive);
+          const everyoneHeld = activePlayers.every(p => p.decision === 'hold');
+
+          if (everyoneHeld && activePlayers.length > 0) {
+            // Everyone held! Add ghost hand and collect antes again
+            const newGhost: GhostHand = {
+              id: `ghost-${Date.now()}`,
+              cards: [deckRef.current.pop()!, deckRef.current.pop()!],
+              cardsRevealed: 0,
+            };
+
+            // Collect antes from all active players again
+            const playersAfterAnte = updatedPlayers.map(p =>
+              p.isActive ? { ...p, tokens: p.tokens - 1 } : p
+            );
+            const anteAmount = activePlayers.length;
+
+            return {
+              ...prev,
+              players: playersAfterAnte,
+              pot: prev.pot + anteAmount,
+              ghostHands: [...prev.ghostHands, newGhost],
+            };
+          }
+
+          return { ...prev, players: updatedPlayers };
+        });
+
         setTimeout(() => startRevealPhase(), 500);
       }
     }
