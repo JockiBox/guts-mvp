@@ -279,10 +279,12 @@ export function useGutsGame() {
   const [playerCount, setPlayerCount] = useState(5);
   const [difficulty, setDifficultyState] = useState<Difficulty>('normal');
   const [newAchievements, setNewAchievements] = useState<Achievement[]>([]);
+  const [thirdCardActive, setThirdCardActive] = useState(false);
   const deckRef = useRef<Card[]>([]);
   const countdownProcessedRef = useRef(false);
   const revealInProgressRef = useRef(false);
   const statsTrackedRef = useRef(false);
+  const thirdCardRef = useRef(false); // Ref to access in callbacks
 
   // Load difficulty from storage on mount
   useEffect(() => {
@@ -298,7 +300,7 @@ export function useGutsGame() {
   const activePlayers = state.players.filter(p => p.isActive);
   const humanPlayer = state.players.find(p => p.isHuman);
 
-  const dealCards = useCallback(() => {
+  const dealCards = useCallback((useThirdCard: boolean = false) => {
     deckRef.current = shuffleDeck(createDeck());
 
     setState(prev => ({
@@ -307,8 +309,19 @@ export function useGutsGame() {
         if (!player.isActive) {
           return player;
         }
-        const cards = [deckRef.current.pop()!, deckRef.current.pop()!];
-        return { ...player, cards, cardsRevealed: 0, decision: null };
+        // Human player gets 3 cards if third card power-up is active
+        const cardCount = player.isHuman && useThirdCard ? 3 : 2;
+        const cards: Card[] = [];
+        for (let i = 0; i < cardCount; i++) {
+          cards.push(deckRef.current.pop()!);
+        }
+        return {
+          ...player,
+          cards,
+          cardsRevealed: 0,
+          decision: null,
+          hasThirdCard: player.isHuman && useThirdCard,
+        };
       }),
       ghostHands: prev.ghostHands.map(ghost => ({
         ...ghost,
@@ -335,17 +348,38 @@ export function useGutsGame() {
     countdownProcessedRef.current = false;
     revealInProgressRef.current = false;
     statsTrackedRef.current = false;
+
+    // Check if third card power-up is active
+    const useThirdCard = thirdCardRef.current;
+    if (useThirdCard) {
+      thirdCardRef.current = false;
+      setThirdCardActive(false);
+    }
+
     collectAntes();
-    dealCards();
-    setState(prev => ({
-      ...prev,
-      gamePhase: 'decision',
-      countdown: 3,
-      roundResult: '',
-      winners: [],
-      losers: [],
-      roundNumber: prev.roundNumber + 1,
-    }));
+    dealCards(useThirdCard);
+    setState(prev => {
+      // Always ensure there's at least one ghost hand
+      let ghostHands = prev.ghostHands;
+      if (ghostHands.length === 0) {
+        const newGhost: GhostHand = {
+          id: `ghost-${Date.now()}`,
+          cards: [deckRef.current.pop()!, deckRef.current.pop()!],
+          cardsRevealed: 0,
+        };
+        ghostHands = [newGhost];
+      }
+      return {
+        ...prev,
+        ghostHands,
+        gamePhase: 'decision',
+        countdown: 3,
+        roundResult: '',
+        winners: [],
+        losers: [],
+        roundNumber: prev.roundNumber + 1,
+      };
+    });
   }, [collectAntes, dealCards]);
 
   const startGame = useCallback((numPlayers?: number) => {
@@ -879,6 +913,26 @@ export function useGutsGame() {
     }));
   }, []);
 
+  // Activate third card for next round
+  const activateThirdCard = useCallback(() => {
+    setThirdCardActive(true);
+    thirdCardRef.current = true;
+  }, []);
+
+  // Drop a card when player has 3 cards (third card power-up)
+  const dropThirdCard = useCallback((cardIndex: number) => {
+    setState(prev => ({
+      ...prev,
+      players: prev.players.map(player => {
+        if (player.isHuman && player.cards.length === 3) {
+          const newCards = player.cards.filter((_, idx) => idx !== cardIndex);
+          return { ...player, cards: newCards, hasThirdCard: false };
+        }
+        return player;
+      }),
+    }));
+  }, []);
+
   return {
     state,
     humanPlayer,
@@ -896,5 +950,8 @@ export function useGutsGame() {
     newAchievements,
     clearNewAchievements,
     setHumanTokens,
+    thirdCardActive,
+    activateThirdCard,
+    dropThirdCard,
   };
 }

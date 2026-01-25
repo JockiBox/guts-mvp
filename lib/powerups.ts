@@ -8,6 +8,7 @@ export type PowerUpType =
   | 'reveal'      // Force one opponent to show cards early
   | 'freeze'      // Prevent ghost hand from being added
   | 'lucky_draw'  // Redraw one of your cards
+  | 'third_card'  // Get 3 cards, drop 1, play with best 2
 
 export interface PowerUp {
   type: PowerUpType;
@@ -74,6 +75,14 @@ export const POWER_UPS: Record<PowerUpType, PowerUp> = {
     icon: '🍀',
     cost: 15,
     rarity: 'common',
+  },
+  third_card: {
+    type: 'third_card',
+    name: 'Third Card',
+    description: 'Get 3 cards instead of 2, then drop 1 to play with the best 2',
+    icon: '🃏',
+    cost: 50,
+    rarity: 'legendary',
   },
 };
 

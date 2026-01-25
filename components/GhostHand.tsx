@@ -10,16 +10,17 @@ interface GhostHandProps {
   isWinner: boolean;
   showCards: boolean;
   isNew?: boolean;
+  compact?: boolean;
 }
 
-export function GhostHand({ ghost, index, isWinner, showCards, isNew }: GhostHandProps) {
+export function GhostHand({ ghost, index, isWinner, showCards, isNew, compact }: GhostHandProps) {
   return (
     <div
       style={{
         position: 'relative',
         background: 'linear-gradient(135deg, rgba(88, 28, 135, 0.4), rgba(139, 92, 246, 0.2), rgba(88, 28, 135, 0.4))',
-        borderRadius: 16,
-        padding: 14,
+        borderRadius: compact ? 12 : 16,
+        padding: compact ? 8 : 14,
         border: isWinner
           ? '3px solid #fbbf24'
           : '2px solid rgba(168, 85, 247, 0.6)',
@@ -29,7 +30,8 @@ export function GhostHand({ ghost, index, isWinner, showCards, isNew }: GhostHan
         animation: isNew
           ? 'ghost-entrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)'
           : 'ghost-hover 3s ease-in-out infinite',
-        transform: 'translateY(0)',
+        transform: compact ? 'scale(0.85)' : 'translateY(0)',
+        transformOrigin: 'center center',
       }}
     >
       {/* Eerie glow effect */}

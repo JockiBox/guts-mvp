@@ -19,6 +19,7 @@ export interface Player {
   personality?: Personality;
   isActive: boolean;
   cardsRevealed: number;
+  hasThirdCard?: boolean; // Player has 3 cards and needs to drop one
   // Profile fields for AI players
   profileId?: string;
   avatar?: string;

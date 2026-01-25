@@ -66,10 +66,10 @@ export function Pot({ amount, ghostHands, winners, showGhostCards }: PotProps) {
         <div
           style={{
             display: 'flex',
-            gap: 8,
+            gap: ghostHands.length > 3 ? 4 : 8,
             flexWrap: 'wrap',
             justifyContent: 'center',
-            maxWidth: 400,
+            maxWidth: ghostHands.length > 4 ? 500 : 400,
           }}
         >
           {ghostHands.map((ghost, idx) => (
@@ -79,6 +79,7 @@ export function Pot({ amount, ghostHands, winners, showGhostCards }: PotProps) {
               index={idx}
               isWinner={winners.includes(ghost.id)}
               showCards={showGhostCards}
+              compact={ghostHands.length > 2}
             />
           ))}
         </div>
