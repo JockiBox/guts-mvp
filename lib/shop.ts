@@ -135,6 +135,13 @@ export const VIP_PACKAGES: ShopItem[] = [
   },
 ];
 
+// Pause token packages
+export const PAUSE_TOKEN_PACKAGES: ShopItem[] = [
+  { id: 'pause_1', name: 'Pause Token', description: '15 sec to think, taunt, use power-ups', price: 50, type: 'powerup', value: 'pause_1', icon: '⏸️', rarity: 'common', quantity: 1 },
+  { id: 'pause_3', name: 'Pause Pack (3)', description: '3 pause tokens - 20% savings', price: 120, type: 'powerup', value: 'pause_3', icon: '⏸️', rarity: 'rare', quantity: 3 },
+  { id: 'pause_10', name: 'Pause Bundle (10)', description: '10 pause tokens - best value!', price: 350, type: 'powerup', value: 'pause_10', icon: '⏸️', rarity: 'epic', quantity: 10 },
+];
+
 // Power-up packages
 export const POWERUP_PACKAGES: ShopItem[] = [
   // Starter packs

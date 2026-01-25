@@ -87,6 +87,7 @@ import { checkCombos, resetSessionCombos, Combo } from '@/lib/comboBonuses';
 import { GAME_MODES, GameMode, GameModeType, loadUnlockedModes, checkModeUnlocks, getMode } from '@/lib/gameModes';
 import { Taunt, getBotTauntResponse } from '@/lib/taunts';
 import { checkLuckyNumber, getLuckyNumber } from '@/lib/luckyNumbers';
+import { loadPauseTokens, usePauseToken, checkPauseTokenReward, getPauseTokenCount, getPauseDuration, addPauseTokens } from '@/lib/pauseTokens';
 import { getReactionForSituation, getWinReaction, getLoseReaction } from '@/lib/botReactions';
 import { PlayerAvatar } from './PlayerAvatar';
 import { AvatarStore } from './AvatarStore';
@@ -159,12 +160,12 @@ function Particles({ active, type }: { active: boolean; type: 'win' | 'sixnine' 
   );
 }
 
-// Daily reward claimed toast
+// Daily reward claimed toast - auto-dismisses after 2 seconds
 function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak: number; onClose: () => void }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
-    }, 4000);
+    }, 2000);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
@@ -173,38 +174,34 @@ function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak:
     <div
       style={{
         position: 'fixed',
-        top: '80px',
-        left: '50%',
-        transform: 'translateX(-50%)',
+        top: '8px',
+        right: '8px',
         background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.95), rgba(217, 119, 6, 0.95))',
-        borderRadius: '12px',
-        padding: '16px 24px',
+        borderRadius: '10px',
+        padding: '12px 16px',
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
-        zIndex: 400,
-        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.4)',
-        animation: 'slide-down 0.4s ease-out',
+        gap: '10px',
+        zIndex: 9999,
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+        animation: 'toast-slide-in 0.3s ease-out',
         cursor: 'pointer',
       }}
       onClick={onClose}
     >
-      <span style={{ fontSize: '32px' }}>🎁</span>
+      <span style={{ fontSize: '24px' }}>🎁</span>
       <div>
-        <div style={{ color: '#0f172a', fontSize: '16px', fontWeight: '700' }}>
-          +{tokens} Tokens Claimed!
+        <div style={{ color: '#0f172a', fontSize: '14px', fontWeight: '700' }}>
+          +{tokens} Tokens!
         </div>
-        <div style={{ color: 'rgba(15, 23, 42, 0.7)', fontSize: '12px' }}>
-          Day {streak} streak{streak > 1 ? ` (+${(streak - 1) * 10} bonus)` : ''}
+        <div style={{ color: 'rgba(15, 23, 42, 0.7)', fontSize: '10px' }}>
+          Day {streak} streak
         </div>
-      </div>
-      <div style={{ color: 'rgba(15, 23, 42, 0.5)', fontSize: '10px', marginLeft: '8px' }}>
-        tap to close
       </div>
       <style jsx>{`
-        @keyframes slide-down {
-          from { transform: translateX(-50%) translateY(-100px); opacity: 0; }
-          to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        @keyframes toast-slide-in {
+          from { transform: translateX(100px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
         }
       `}</style>
     </div>
@@ -302,7 +299,14 @@ export function GameBoard() {
   const [closeCallMessage, setCloseCallMessage] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
 
+  // Pause system state
+  const [isPaused, setIsPaused] = useState(false);
+  const [pauseTimeRemaining, setPauseTimeRemaining] = useState(0);
+  const [pauseTokens, setPauseTokens] = useState(1);
+  const [pauseTokenEarned, setPauseTokenEarned] = useState(false);
+
   const lastCountdown = useRef<number | null>(null);
+  const pauseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastPhase = useRef<string>('start');
   const revealSoundPlayed = useRef(false);
   const gameResultRecorded = useRef(false);
@@ -317,6 +321,7 @@ export function GameBoard() {
     setWheelState(loadWheelState());
     setPlayerAvatar(loadGuestAvatar());
     setOwnedAvatarItems(loadGuestOwnedItems());
+    setPauseTokens(getPauseTokenCount());
     setRevengeTarget(getTopRevengeTarget());
     resetSessionCombos();
   }, []);
@@ -690,6 +695,17 @@ export function GameBoard() {
         const luckyResult = checkLuckyNumber(humanPlayer.cards, won);
         if (luckyResult.bonus > 0) {
           addGuestTokens(luckyResult.bonus);
+        }
+      }
+
+      // Check for pause token reward (every 5 wins)
+      if (won) {
+        const achievements = loadAchievements();
+        const pauseReward = checkPauseTokenReward(achievements.totalWins);
+        if (pauseReward.earned) {
+          setPauseTokens(pauseReward.newTotal);
+          setPauseTokenEarned(true);
+          setTimeout(() => setPauseTokenEarned(false), 3000);
         }
       }
 
@@ -1317,6 +1333,43 @@ export function GameBoard() {
           streak={dailyRewardToast.streak}
           onClose={() => setDailyRewardToast(null)}
         />
+      )}
+
+      {/* Pause token earned notification */}
+      {pauseTokenEarned && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '8px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(109, 40, 217, 0.95))',
+            borderRadius: '10px',
+            padding: '12px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            zIndex: 9999,
+            boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)',
+            animation: 'toast-slide-down 0.3s ease-out',
+          }}
+        >
+          <span style={{ fontSize: '24px' }}>⏸️</span>
+          <div>
+            <div style={{ color: 'white', fontSize: '14px', fontWeight: '700' }}>
+              +1 Pause Token!
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px' }}>
+              5 wins reward
+            </div>
+          </div>
+          <style jsx>{`
+            @keyframes toast-slide-down {
+              from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
+              to { transform: translateX(-50%) translateY(0); opacity: 1; }
+            }
+          `}</style>
+        </div>
       )}
 
       {/* DRAMATIC 69 REVEAL OVERLAY */}
@@ -2467,8 +2520,8 @@ export function GameBoard() {
               )}
 
               {/* BIG DRAMATIC BUTTONS */}
-              {isDecisionPhase && !humanDecided && (
-                <div className="hold-drop-buttons" style={{ display: 'flex', gap: '30px' }}>
+              {isDecisionPhase && !humanDecided && !isPaused && (
+                <div className="hold-drop-buttons" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                   <button
                     onClick={() => {
                       playHold();
@@ -2499,6 +2552,54 @@ export function GameBoard() {
                   >
                     HOLD
                   </button>
+
+                  {/* PAUSE BUTTON */}
+                  <button
+                    onClick={() => {
+                      if (pauseTokens > 0 && usePauseToken()) {
+                        playClick();
+                        setIsPaused(true);
+                        setPauseTokens(prev => prev - 1);
+                        setPauseTimeRemaining(getPauseDuration());
+                        // Start countdown
+                        pauseTimerRef.current = setInterval(() => {
+                          setPauseTimeRemaining(prev => {
+                            if (prev <= 1) {
+                              // Auto-resume when time runs out
+                              setIsPaused(false);
+                              if (pauseTimerRef.current) clearInterval(pauseTimerRef.current);
+                              return 0;
+                            }
+                            return prev - 1;
+                          });
+                        }, 1000);
+                      }
+                    }}
+                    disabled={pauseTokens <= 0}
+                    style={{
+                      padding: '16px 24px',
+                      fontSize: '16px',
+                      fontWeight: 700,
+                      color: pauseTokens > 0 ? 'white' : '#64748b',
+                      background: pauseTokens > 0
+                        ? 'linear-gradient(135deg, #8b5cf6, #7c3aed, #6d28d9)'
+                        : 'rgba(51, 65, 85, 0.5)',
+                      border: pauseTokens > 0 ? '3px solid #a78bfa' : '3px solid #475569',
+                      borderRadius: '14px',
+                      cursor: pauseTokens > 0 ? 'pointer' : 'not-allowed',
+                      boxShadow: pauseTokens > 0 ? '0 0 25px rgba(139,92,246,0.5)' : 'none',
+                      transition: 'all 0.15s ease',
+                      textShadow: pauseTokens > 0 ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span>⏸️</span>
+                    <span style={{ fontSize: '11px' }}>PAUSE ({pauseTokens})</span>
+                  </button>
+
                   <button
                     onClick={() => {
                       playDrop();
@@ -2529,6 +2630,98 @@ export function GameBoard() {
                   >
                     DROP
                   </button>
+                </div>
+              )}
+
+              {/* PAUSED STATE - Show timer and resume button */}
+              {isDecisionPhase && !humanDecided && isPaused && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(109, 40, 217, 0.3))',
+                    borderRadius: '16px',
+                    padding: '20px 40px',
+                    border: '3px solid #a78bfa',
+                    boxShadow: '0 0 30px rgba(139,92,246,0.4)',
+                    textAlign: 'center',
+                  }}>
+                    <div style={{ fontSize: '14px', color: '#c4b5fd', marginBottom: '8px', fontWeight: 600 }}>
+                      ⏸️ PAUSED - Use power-ups, think, or taunt!
+                    </div>
+                    <div style={{
+                      fontSize: '48px',
+                      fontWeight: 900,
+                      color: pauseTimeRemaining <= 5 ? '#ef4444' : '#a78bfa',
+                      textShadow: '0 0 20px rgba(139,92,246,0.6)',
+                      animation: pauseTimeRemaining <= 5 ? 'blink 0.5s ease-in-out infinite' : 'none',
+                    }}>
+                      {pauseTimeRemaining}s
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '20px' }}>
+                    <button
+                      onClick={() => {
+                        playHold();
+                        setIsPaused(false);
+                        if (pauseTimerRef.current) clearInterval(pauseTimerRef.current);
+                        makeHumanDecision('hold');
+                      }}
+                      style={{
+                        padding: '20px 48px',
+                        fontSize: '24px',
+                        fontWeight: 900,
+                        color: 'white',
+                        background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                        border: '3px solid #4ade80',
+                        borderRadius: '16px',
+                        cursor: 'pointer',
+                        boxShadow: '0 0 30px rgba(34,197,94,0.5)',
+                      }}
+                    >
+                      HOLD
+                    </button>
+                    <button
+                      onClick={() => {
+                        playClick();
+                        setIsPaused(false);
+                        if (pauseTimerRef.current) clearInterval(pauseTimerRef.current);
+                      }}
+                      style={{
+                        padding: '20px 32px',
+                        fontSize: '20px',
+                        fontWeight: 700,
+                        color: 'white',
+                        background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                        border: '3px solid #a78bfa',
+                        borderRadius: '16px',
+                        cursor: 'pointer',
+                        boxShadow: '0 0 30px rgba(139,92,246,0.5)',
+                      }}
+                    >
+                      ▶️ RESUME
+                    </button>
+                    <button
+                      onClick={() => {
+                        playDrop();
+                        setIsPaused(false);
+                        if (pauseTimerRef.current) clearInterval(pauseTimerRef.current);
+                        makeHumanDecision('drop');
+                      }}
+                      style={{
+                        padding: '20px 48px',
+                        fontSize: '24px',
+                        fontWeight: 900,
+                        color: 'white',
+                        background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                        border: '3px solid #f87171',
+                        borderRadius: '16px',
+                        cursor: 'pointer',
+                        boxShadow: '0 0 30px rgba(239,68,68,0.5)',
+                      }}
+                    >
+                      DROP
+                    </button>
+                  </div>
                 </div>
               )}
 
