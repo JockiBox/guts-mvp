@@ -446,3 +446,182 @@ export function playRevealStart() {
 // Aliases for multiplayer sounds
 export const playSuccess = playWin;
 export const playError = playLose;
+
+// ============================================
+// AMBIENT BACKGROUND MUSIC
+// ============================================
+
+let ambientNodes: {
+  oscillators: OscillatorNode[];
+  gains: GainNode[];
+  masterGain: GainNode | null;
+  lfo: OscillatorNode | null;
+} | null = null;
+
+let ambientEnabled = false;
+
+export function isAmbientPlaying(): boolean {
+  return ambientEnabled && ambientNodes !== null;
+}
+
+export function startAmbientMusic() {
+  if (!isSoundEnabled() || ambientNodes) return;
+
+  try {
+    const ctx = getAudioContext();
+
+    // Master gain for ambient
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0, ctx.currentTime);
+    masterGain.gain.linearRampToValueAtTime(0.08 * masterVolume, ctx.currentTime + 3);
+    masterGain.connect(ctx.destination);
+
+    // Low-frequency oscillator for subtle movement
+    const lfo = ctx.createOscillator();
+    lfo.frequency.setValueAtTime(0.05, ctx.currentTime); // Very slow: 1 cycle per 20 seconds
+    lfo.type = 'sine';
+
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.setValueAtTime(3, ctx.currentTime);
+    lfo.connect(lfoGain);
+
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+
+    // Create warm, evolving pad sound
+    // Using frequencies that create a calm, non-jarring atmosphere
+    const frequencies = [
+      55,    // A1 - deep bass drone
+      82.5,  // E2 - fifth above
+      110,   // A2 - octave
+      165,   // E3 - another fifth
+      220,   // A3 - two octaves up
+    ];
+
+    frequencies.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      // Different wave types for richness
+      osc.type = i < 2 ? 'sine' : i < 4 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+      // Very subtle detuning for warmth (different for each)
+      const detune = (i - 2) * 3; // -6 to +6 cents
+      osc.detune.setValueAtTime(detune, ctx.currentTime);
+
+      // Connect LFO to frequency for slow drift
+      lfoGain.connect(osc.frequency);
+
+      // Low-pass filter for smoothness
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(400 + i * 100, ctx.currentTime);
+      filter.Q.setValueAtTime(0.5, ctx.currentTime);
+
+      // Volume envelope - lower frequencies are quieter
+      const volume = i === 0 ? 0.3 : i === 1 ? 0.25 : i === 2 ? 0.2 : 0.15;
+      gain.gain.setValueAtTime(volume, ctx.currentTime);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(masterGain);
+
+      osc.start(ctx.currentTime);
+      oscillators.push(osc);
+      gains.push(gain);
+    });
+
+    lfo.start(ctx.currentTime);
+
+    ambientNodes = { oscillators, gains, masterGain, lfo };
+    ambientEnabled = true;
+
+    // Slowly evolve the sound over time
+    evolveAmbient();
+  } catch (e) {
+    console.error('Failed to start ambient music:', e);
+  }
+}
+
+function evolveAmbient() {
+  if (!ambientNodes || !ambientEnabled) return;
+
+  try {
+    const ctx = getAudioContext();
+
+    // Every 15-30 seconds, subtly shift frequencies
+    const evolveInterval = 15000 + Math.random() * 15000;
+
+    setTimeout(() => {
+      if (!ambientNodes || !ambientEnabled) return;
+
+      // Subtle random detuning shifts
+      ambientNodes.oscillators.forEach((osc, i) => {
+        const currentDetune = (i - 2) * 3;
+        const shift = (Math.random() - 0.5) * 8;
+        osc.detune.linearRampToValueAtTime(
+          currentDetune + shift,
+          ctx.currentTime + 5
+        );
+      });
+
+      // Continue evolving
+      evolveAmbient();
+    }, evolveInterval);
+  } catch (e) {}
+}
+
+export function stopAmbientMusic() {
+  if (!ambientNodes) return;
+
+  try {
+    const ctx = getAudioContext();
+
+    // Fade out over 2 seconds
+    if (ambientNodes.masterGain) {
+      ambientNodes.masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 2);
+    }
+
+    // Stop after fade
+    setTimeout(() => {
+      if (!ambientNodes) return;
+
+      ambientNodes.oscillators.forEach(osc => {
+        try { osc.stop(); } catch (e) {}
+      });
+      if (ambientNodes.lfo) {
+        try { ambientNodes.lfo.stop(); } catch (e) {}
+      }
+      ambientNodes = null;
+    }, 2100);
+
+    ambientEnabled = false;
+  } catch (e) {
+    ambientNodes = null;
+    ambientEnabled = false;
+  }
+}
+
+export function toggleAmbientMusic(): boolean {
+  if (isAmbientPlaying()) {
+    stopAmbientMusic();
+    return false;
+  } else {
+    startAmbientMusic();
+    return true;
+  }
+}
+
+// Update ambient volume when master volume changes
+export function updateAmbientVolume() {
+  if (ambientNodes?.masterGain) {
+    try {
+      const ctx = getAudioContext();
+      ambientNodes.masterGain.gain.linearRampToValueAtTime(
+        0.08 * masterVolume,
+        ctx.currentTime + 0.5
+      );
+    } catch (e) {}
+  }
+}

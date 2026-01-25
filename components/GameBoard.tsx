@@ -27,6 +27,10 @@ import {
   playRevealStart,
   isSoundEnabled,
   setSoundEnabled,
+  startAmbientMusic,
+  stopAmbientMusic,
+  isAmbientPlaying,
+  toggleAmbientMusic,
 } from '@/lib/sounds';
 import { type Achievement } from '@/lib/stats';
 import { shareResult, downloadResultCard, type ShareData } from '@/lib/share';
@@ -262,6 +266,7 @@ export function GameBoard() {
   const [flashColor, setFlashColor] = useState<string | null>(null);
   const [sixNineReveal, setSixNineReveal] = useState<{ name: string; cards: string[] } | null>(null);
   const [soundOn, setSoundOn] = useState(true);
+  const [musicOn, setMusicOn] = useState(false);
   const [achievementPopup, setAchievementPopup] = useState<Achievement | null>(null);
   const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'copied'>('idle');
   const [dailyRewardToast, setDailyRewardToast] = useState<{ tokens: number; streak: number } | null>(null);
@@ -800,6 +805,13 @@ export function GameBoard() {
     setSoundOn(newState);
     setSoundEnabled(newState);
     if (newState) playClick();
+  };
+
+  // Toggle ambient music
+  const toggleMusic = () => {
+    const newState = toggleAmbientMusic();
+    setMusicOn(newState);
+    playClick();
   };
 
   // Handle daily reward claim
@@ -1509,6 +1521,24 @@ export function GameBoard() {
             title={soundOn ? 'Sound On' : 'Sound Off'}
           >
             {soundOn ? '🔊' : '🔇'}
+          </button>
+
+          {/* Music Toggle */}
+          <button
+            onClick={toggleMusic}
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              border: `2px solid ${musicOn ? '#14b8a6' : '#334155'}`,
+              backdropFilter: 'blur(8px)',
+              cursor: 'pointer',
+              fontSize: '16px',
+              transition: 'all 0.2s',
+            }}
+            title={musicOn ? 'Music On' : 'Music Off'}
+          >
+            {musicOn ? '🎵' : '🎶'}
           </button>
 
           {/* Shop Button */}
