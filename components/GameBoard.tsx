@@ -198,12 +198,6 @@ function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak:
           Day {streak} streak
         </div>
       </div>
-      <style jsx>{`
-        @keyframes toast-slide-in {
-          from { transform: translateX(100px); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 }
@@ -1363,12 +1357,6 @@ export function GameBoard() {
               5 wins reward
             </div>
           </div>
-          <style jsx>{`
-            @keyframes toast-slide-down {
-              from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
-              to { transform: translateX(-50%) translateY(0); opacity: 1; }
-            }
-          `}</style>
         </div>
       )}
 
@@ -3144,6 +3132,14 @@ export function GameBoard() {
 
       {/* All animations */}
       <style jsx global>{`
+        @keyframes toast-slide-in {
+          from { transform: translateX(100px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes toast-slide-down {
+          from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
+          to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
           10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
