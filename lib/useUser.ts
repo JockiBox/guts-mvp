@@ -148,19 +148,30 @@ export function useUser() {
 
   // Update tokens locally (for game results)
   const updateTokens = useCallback(async (change: number) => {
-    if (!user) return;
+    console.log('[UPDATE_TOKENS] Called with change:', change, 'user:', user?.id, 'current tokens:', user?.tokens);
+    if (!user) {
+      console.log('[UPDATE_TOKENS] No user found, returning early');
+      return;
+    }
+
+    const newTokens = user.tokens + change;
+    console.log('[UPDATE_TOKENS] Updating database:', { userId: user.id, currentTokens: user.tokens, change, newTokens });
 
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ tokens: user.tokens + change })
+        .update({ tokens: newTokens })
         .eq('id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[UPDATE_TOKENS] Database error:', error);
+        throw error;
+      }
 
+      console.log('[UPDATE_TOKENS] Database updated successfully, updating local state');
       setUser(prev => prev ? { ...prev, tokens: prev.tokens + change } : null);
     } catch (error) {
-      console.error('Error updating tokens:', error);
+      console.error('[UPDATE_TOKENS] Error updating tokens:', error);
     }
   }, [user]);
 
