@@ -42,43 +42,57 @@ export function Player({ player, isWinner, isLoser, showCards, isHearted, onHear
         minWidth: '100px',
       }}
     >
-      {/* Speech Bubble - Trash Talk */}
+      {/* Speech Bubble - Compact Trash Talk */}
       {player.currentThought && player.isActive && (
         <div
           style={{
             position: 'absolute',
-            top: '-45px',
+            top: '-28px',
             left: '50%',
             transform: 'translateX(-50%)',
-            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(51, 65, 85, 0.98))',
-            border: '2px solid #14b8a6',
-            borderRadius: '12px',
-            padding: '6px 12px',
-            fontSize: '12px',
-            fontWeight: '600',
-            color: '#5eead4',
+            background: player.personality === 'aggressive'
+              ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(185, 28, 28, 0.9))'
+              : player.personality === 'conservative'
+                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(37, 99, 235, 0.9))'
+                : player.personality === 'tricky'
+                  ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(126, 34, 206, 0.9))'
+                  : 'linear-gradient(135deg, rgba(34, 197, 94, 0.9), rgba(22, 163, 74, 0.9))',
+            border: 'none',
+            borderRadius: '10px',
+            padding: '3px 8px',
+            fontSize: '9px',
+            fontWeight: '700',
+            color: 'white',
             whiteSpace: 'nowrap',
-            maxWidth: '160px',
+            maxWidth: '100px',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             zIndex: 50,
-            animation: 'thought-appear 0.4s ease-out, thought-pulse 2s ease-in-out infinite',
-            boxShadow: '0 4px 15px rgba(20, 184, 166, 0.3)',
+            animation: 'thought-pop 0.3s ease-out',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
           }}
         >
-          💬 {player.currentThought}
+          {player.currentThought}
           {/* Bubble pointer */}
           <div
             style={{
               position: 'absolute',
-              bottom: '-8px',
+              bottom: '-5px',
               left: '50%',
               transform: 'translateX(-50%)',
               width: 0,
               height: 0,
-              borderLeft: '8px solid transparent',
-              borderRight: '8px solid transparent',
-              borderTop: '8px solid #14b8a6',
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: player.personality === 'aggressive'
+                ? '5px solid rgba(185, 28, 28, 0.9)'
+                : player.personality === 'conservative'
+                  ? '5px solid rgba(37, 99, 235, 0.9)'
+                  : player.personality === 'tricky'
+                    ? '5px solid rgba(126, 34, 206, 0.9)'
+                    : '5px solid rgba(22, 163, 74, 0.9)',
             }}
           />
         </div>
@@ -203,13 +217,10 @@ export function Player({ player, isWinner, isLoser, showCards, isHearted, onHear
       </div>
 
       <style jsx>{`
-        @keyframes thought-appear {
-          0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.8); }
-          100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-        }
-        @keyframes thought-pulse {
-          0%, 100% { box-shadow: 0 4px 15px rgba(20, 184, 166, 0.3); }
-          50% { box-shadow: 0 4px 20px rgba(20, 184, 166, 0.5); }
+        @keyframes thought-pop {
+          0% { opacity: 0; transform: translateX(-50%) scale(0.5); }
+          70% { transform: translateX(-50%) scale(1.1); }
+          100% { opacity: 1; transform: translateX(-50%) scale(1); }
         }
         @keyframes token-win-bounce {
           0%, 100% { transform: scale(1); }

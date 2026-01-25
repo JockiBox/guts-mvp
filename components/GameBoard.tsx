@@ -978,58 +978,81 @@ export function GameBoard() {
         </div>
       </div>
 
-      {/* Main game area */}
+      {/* Main game area - Circular Poker Table Layout */}
       <div
         style={{
           flex: 1,
-          display: 'grid',
-          gridTemplateRows: 'auto 1fr auto',
-          gridTemplateColumns: '1fr 2fr 1fr',
-          gap: '8px',
-          maxWidth: '1200px',
+          position: 'relative',
+          maxWidth: '900px',
           margin: '0 auto',
           width: '100%',
-          minHeight: 0,
+          minHeight: '400px',
         }}
       >
-        {/* Top AIs */}
-        <div style={{ gridColumn: '2', display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {aiPlayers.slice(0, Math.ceil(aiPlayers.length / 3)).map((player) => (
-            <Player
-              key={player.id}
-              player={player}
-              isWinner={winners.includes(player.id)}
-              isLoser={losers.includes(player.id)}
-              showCards={showCards && player.decision === 'hold'}
-              isHearted={player.profileId ? isProfileHearted(player.profileId) : false}
-              onHeart={heartProfile}
-            />
-          ))}
-        </div>
-
-        {/* Left AIs */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-          {aiPlayers.slice(Math.ceil(aiPlayers.length / 3), Math.ceil(aiPlayers.length / 3) + Math.ceil(aiPlayers.length / 3)).map((player) => (
-            <Player
-              key={player.id}
-              player={player}
-              isWinner={winners.includes(player.id)}
-              isLoser={losers.includes(player.id)}
-              showCards={showCards && player.decision === 'hold'}
-              isHearted={player.profileId ? isProfileHearted(player.profileId) : false}
-              onHeart={heartProfile}
-            />
-          ))}
-        </div>
-
-        {/* Center */}
+        {/* Poker table felt */}
         <div
           style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '70%',
+            height: '60%',
+            background: 'radial-gradient(ellipse at center, rgba(20, 184, 166, 0.15) 0%, rgba(15, 23, 42, 0.8) 70%)',
+            borderRadius: '50%',
+            border: '3px solid rgba(20, 184, 166, 0.3)',
+            boxShadow: 'inset 0 0 60px rgba(20, 184, 166, 0.1), 0 0 30px rgba(0, 0, 0, 0.5)',
+          }}
+        />
+
+        {/* AI Players positioned in circle */}
+        {aiPlayers.map((player, index) => {
+          // Calculate position around the circle (top half only, human at bottom)
+          const totalAI = aiPlayers.length;
+          const angleStep = 180 / (totalAI + 1); // Spread across top half
+          const angle = (180 + angleStep * (index + 1)) * (Math.PI / 180); // Start from left, go right
+          const radiusX = 42; // % from center horizontally
+          const radiusY = 38; // % from center vertically
+
+          const left = 50 + radiusX * Math.cos(angle);
+          const top = 50 + radiusY * Math.sin(angle);
+
+          return (
+            <div
+              key={player.id}
+              style={{
+                position: 'absolute',
+                left: `${left}%`,
+                top: `${top}%`,
+                transform: 'translate(-50%, -50%)',
+                zIndex: 10,
+              }}
+            >
+              <Player
+                player={player}
+                isWinner={winners.includes(player.id)}
+                isLoser={losers.includes(player.id)}
+                showCards={showCards && player.decision === 'hold'}
+                isHearted={player.profileId ? isProfileHearted(player.profileId) : false}
+                onHeart={heartProfile}
+              />
+            </div>
+          );
+        })}
+
+        {/* Center - Positioned in middle of table */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '12px',
+            gap: '10px',
+            zIndex: 20,
           }}
         >
           {/* Center Pot Display */}
@@ -1274,23 +1297,16 @@ export function GameBoard() {
           )}
         </div>
 
-        {/* Right AIs */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-          {aiPlayers.slice(Math.ceil(aiPlayers.length / 3) + Math.ceil(aiPlayers.length / 3)).map((player) => (
-            <Player
-              key={player.id}
-              player={player}
-              isWinner={winners.includes(player.id)}
-              isLoser={losers.includes(player.id)}
-              showCards={showCards && player.decision === 'hold'}
-              isHearted={player.profileId ? isProfileHearted(player.profileId) : false}
-              onHeart={heartProfile}
-            />
-          ))}
-        </div>
-
-        {/* Human player */}
-        <div style={{ gridColumn: '1 / -1' }}>
+        {/* Human player - Bottom of table */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '10px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 30,
+          }}
+        >
           {humanPlayer && (
             <div
               style={{

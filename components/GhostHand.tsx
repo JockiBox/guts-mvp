@@ -9,47 +9,232 @@ interface GhostHandProps {
   index: number;
   isWinner: boolean;
   showCards: boolean;
+  isNew?: boolean;
 }
 
-export function GhostHand({ ghost, index, isWinner, showCards }: GhostHandProps) {
+export function GhostHand({ ghost, index, isWinner, showCards, isNew }: GhostHandProps) {
   return (
     <div
       style={{
-        background: 'rgba(139, 92, 246, 0.1)',
-        borderRadius: 12,
-        padding: 12,
-        border: isWinner ? '2px solid #fbbf24' : '1px solid rgba(139, 92, 246, 0.3)',
-        boxShadow: isWinner ? '0 0 15px rgba(251, 191, 36, 0.4)' : '0 0 15px rgba(139, 92, 246, 0.2)',
+        position: 'relative',
+        background: 'linear-gradient(135deg, rgba(88, 28, 135, 0.4), rgba(139, 92, 246, 0.2), rgba(88, 28, 135, 0.4))',
+        borderRadius: 16,
+        padding: 14,
+        border: isWinner
+          ? '3px solid #fbbf24'
+          : '2px solid rgba(168, 85, 247, 0.6)',
+        boxShadow: isWinner
+          ? '0 0 30px rgba(251, 191, 36, 0.6), 0 0 60px rgba(251, 191, 36, 0.3), inset 0 0 20px rgba(251, 191, 36, 0.1)'
+          : '0 0 25px rgba(168, 85, 247, 0.5), 0 0 50px rgba(139, 92, 246, 0.3), inset 0 0 30px rgba(139, 92, 246, 0.1)',
+        animation: isNew
+          ? 'ghost-entrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)'
+          : 'ghost-hover 3s ease-in-out infinite',
+        transform: 'translateY(0)',
       }}
     >
+      {/* Eerie glow effect */}
       <div
         style={{
+          position: 'absolute',
+          inset: -4,
+          background: 'radial-gradient(ellipse at center, rgba(168, 85, 247, 0.3), transparent 70%)',
+          borderRadius: 20,
+          animation: 'ghost-pulse 2s ease-in-out infinite',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Floating particles */}
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: 16, pointerEvents: 'none' }}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              width: 4,
+              height: 4,
+              background: 'rgba(216, 180, 254, 0.8)',
+              borderRadius: '50%',
+              left: `${20 + i * 15}%`,
+              bottom: 0,
+              animation: `ghost-particle ${2 + i * 0.3}s ease-in-out infinite ${i * 0.2}s`,
+              boxShadow: '0 0 6px rgba(216, 180, 254, 0.8)',
+            }}
+          />
+        ))}
+      </div>
+
+      <div
+        style={{
+          position: 'relative',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: 8,
+          zIndex: 1,
         }}
       >
-        <span style={{ color: '#c084fc', fontWeight: 'bold', fontSize: 12 }}>
-          Ghost #{index + 1}
-        </span>
+        {/* Ghost icon and label */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 20,
+              animation: 'ghost-wobble 2s ease-in-out infinite',
+              filter: 'drop-shadow(0 0 8px rgba(168, 85, 247, 0.8))',
+            }}
+          >
+            👻
+          </span>
+          <span
+            style={{
+              color: '#e9d5ff',
+              fontWeight: 'bold',
+              fontSize: 13,
+              textShadow: '0 0 10px rgba(168, 85, 247, 0.8)',
+              letterSpacing: '1px',
+            }}
+          >
+            GHOST #{index + 1}
+          </span>
+        </div>
 
-        <div style={{ display: 'flex', gap: 4 }}>
+        {/* Danger indicator */}
+        <div
+          style={{
+            fontSize: 9,
+            color: '#f87171',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            letterSpacing: '2px',
+            animation: 'blink 1s ease-in-out infinite',
+          }}
+        >
+          ⚠️ DANGER ⚠️
+        </div>
+
+        {/* Cards */}
+        <div style={{ display: 'flex', gap: 6 }}>
           {ghost.cards.map((card, idx) => (
-            <Card
+            <div
               key={idx}
-              card={card}
-              revealed={showCards && ghost.cardsRevealed > idx}
-              isFlipping={ghost.cardsRevealed === idx + 1}
-              size="sm"
-            />
+              style={{
+                filter: showCards && ghost.cardsRevealed > idx
+                  ? 'drop-shadow(0 0 10px rgba(168, 85, 247, 0.6))'
+                  : 'none',
+              }}
+            >
+              <Card
+                card={card}
+                revealed={showCards && ghost.cardsRevealed > idx}
+                isFlipping={ghost.cardsRevealed === idx + 1}
+                size="sm"
+              />
+            </div>
           ))}
         </div>
 
+        {/* Hand description */}
         {showCards && ghost.cardsRevealed === 2 && (
-          <div style={{ fontSize: 11, color: '#d8b4fe' }}>{getHandDescription(ghost.cards)}</div>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 'bold',
+              color: isWinner ? '#fbbf24' : '#e9d5ff',
+              textShadow: isWinner
+                ? '0 0 15px rgba(251, 191, 36, 0.8)'
+                : '0 0 10px rgba(168, 85, 247, 0.6)',
+              animation: isWinner ? 'ghost-win-text 0.5s ease-out' : 'none',
+            }}
+          >
+            {getHandDescription(ghost.cards)}
+          </div>
         )}
       </div>
+
+      <style jsx>{`
+        @keyframes ghost-entrance {
+          0% {
+            opacity: 0;
+            transform: scale(0.3) translateY(50px);
+            filter: blur(10px);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.1) translateY(-10px);
+            filter: blur(0);
+          }
+          100% {
+            transform: scale(1) translateY(0);
+          }
+        }
+        @keyframes ghost-hover {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-5px);
+          }
+        }
+        @keyframes ghost-pulse {
+          0%, 100% {
+            opacity: 0.5;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.8;
+            transform: scale(1.05);
+          }
+        }
+        @keyframes ghost-wobble {
+          0%, 100% {
+            transform: rotate(-5deg);
+          }
+          50% {
+            transform: rotate(5deg);
+          }
+        }
+        @keyframes ghost-particle {
+          0%, 100% {
+            transform: translateY(0) scale(1);
+            opacity: 0;
+          }
+          10% {
+            opacity: 1;
+          }
+          90% {
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(-60px) scale(0.5);
+            opacity: 0;
+          }
+        }
+        @keyframes blink {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.4;
+          }
+        }
+        @keyframes ghost-win-text {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.2);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 }
