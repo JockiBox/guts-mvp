@@ -129,44 +129,73 @@ function calculateAIDecision(player: Player, difficulty: Difficulty): Decision {
   const accuracyRoll = Math.random();
   const makeMistake = accuracyRoll > config.aiAccuracy;
 
-  let holdProbability = 0.4;
+  let holdProbability = 0.1; // Default: very unlikely to hold garbage
 
-  if (handValue > 1000) {
-    holdProbability = 0.95;
-  } else if (handValue > 500) {
-    holdProbability = 0.8;
-  } else if (handValue > 180) {
-    holdProbability = 0.6;
+  // Hand value ranges (for reference):
+  // 6-9: 2000+ | Pairs: 1000-1014 | A-K: 223 | K-Q: 207 | Q-J: 191
+  // J-10: 175 | 10-9: 159 | 9-8: 143 | 8-7: 127 | 7-6: 111
+  // 6-5: 95 | 5-4: 79 | 4-3: 63 | 3-2: 47
+
+  if (handValue >= 1000) {
+    // Pairs or 6-9 - almost always hold
+    holdProbability = 0.97;
+  } else if (handValue >= 205) {
+    // A-K, A-Q, K-Q - very strong high cards
+    holdProbability = 0.80;
+  } else if (handValue >= 175) {
+    // Q-J, J-10 - solid hands
+    holdProbability = 0.55;
+  } else if (handValue >= 145) {
+    // 10-9, 9-8 - mediocre, risky
+    holdProbability = 0.30;
+  } else if (handValue >= 110) {
+    // 8-7, 7-6 - weak
+    holdProbability = 0.15;
   } else {
-    holdProbability = 0.25;
-    // Bluff chance on bad hands
+    // Trash hands (below 7-high)
+    holdProbability = 0.08;
+    // Small bluff chance on garbage
     if (Math.random() < config.aiBluffChance) {
-      holdProbability = 0.6;
+      holdProbability = 0.35;
     }
   }
 
-  // Apply cautiousness modifier
+  // Apply cautiousness modifier from difficulty
   holdProbability += config.aiCautiousness;
 
+  // Personality modifiers - make them more impactful
   switch (player.personality) {
     case 'aggressive':
-      holdProbability = Math.min(1, holdProbability + 0.2);
+      // Aggressive players are reckless - hold more often
+      holdProbability = Math.min(0.95, holdProbability + 0.25);
       break;
     case 'conservative':
-      holdProbability = Math.max(0, holdProbability - 0.2);
+      // Conservative players only play strong hands
+      holdProbability = Math.max(0.05, holdProbability - 0.25);
       break;
     case 'random':
-      holdProbability = Math.random();
+      // Chaotic - truly random but weighted slightly by hand
+      holdProbability = 0.3 + Math.random() * 0.4;
       break;
     case 'tricky':
-      holdProbability = holdProbability > 0.5 ? holdProbability - 0.15 : holdProbability + 0.15;
+      // Mind games - reverse expectations
+      if (handValue >= 175) {
+        // Good hand? Sometimes drop to confuse
+        holdProbability = Math.max(0.4, holdProbability - 0.2);
+      } else {
+        // Bad hand? Sometimes bluff
+        holdProbability = Math.min(0.6, holdProbability + 0.2);
+      }
       break;
   }
 
-  // On easy mode, AI makes more mistakes
+  // On easy mode, AI makes more mistakes (inverts good decisions)
   if (makeMistake) {
-    holdProbability = 1 - holdProbability; // Invert decision
+    holdProbability = 1 - holdProbability;
   }
+
+  // Clamp to valid range
+  holdProbability = Math.max(0.02, Math.min(0.98, holdProbability));
 
   return Math.random() < holdProbability ? 'hold' : 'drop';
 }
