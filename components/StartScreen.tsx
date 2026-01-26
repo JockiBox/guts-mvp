@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getTop10Profiles, loadHeartedProfiles, type AIProfile } from '@/lib/profiles';
+import type { AIProfile } from '@/lib/profiles';
 import { loadPlayerStats, getAllAchievements, getWinRate, formatStatValue, type PlayerStats, type Achievement } from '@/lib/stats';
 import { DIFFICULTY_CONFIGS, type Difficulty } from '@/lib/difficulty';
 import { isTrendingEnabled, setTrendingEnabled } from '@/lib/trendingNames';
@@ -32,8 +32,6 @@ interface StartScreenProps {
 export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCount, difficulty, setDifficulty }: StartScreenProps) {
   const { user, loading: userLoading, canClaimDaily, fetchProfile, claimDaily, buyItem, purchaseTokens } = useUser();
   const { isEnabled } = useAdminSettings();
-  const [topProfiles, setTopProfiles] = useState<AIProfile[]>([]);
-  const [heartedIds, setHeartedIds] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [activeTab, setActiveTab] = useState<'play' | 'stats' | 'achievements'>('play');
@@ -72,8 +70,6 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
   const tutorialEnabled = isEnabled('tutorialEnabled');
 
   useEffect(() => {
-    setTopProfiles(getTop10Profiles());
-    setHeartedIds(loadHeartedProfiles());
     setStats(loadPlayerStats());
     setAchievements(getAllAchievements());
     setTrendingNames(isTrendingEnabled());
@@ -130,7 +126,8 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px',
+        padding: '12px',
+        paddingBottom: '60px',
         background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
       }}
     >
@@ -138,14 +135,12 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
         style={{
           background: '#1e293b',
           borderRadius: '16px',
-          padding: '24px',
-          maxWidth: '520px',
+          padding: '16px',
+          maxWidth: '480px',
           width: '100%',
           textAlign: 'center',
           border: '1px solid #334155',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-          maxHeight: '90vh',
-          overflowY: 'auto',
         }}
       >
         {/* User Header */}
@@ -291,19 +286,19 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
         {/* Title */}
         <h1
           style={{
-            fontSize: '42px',
+            fontSize: '36px',
             fontWeight: 900,
             background: 'linear-gradient(135deg, #2dd4bf, #22d3ee)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
-            marginBottom: '4px',
+            marginBottom: '2px',
             letterSpacing: '-1px',
           }}
         >
           GUTS
         </h1>
-        <p style={{ color: '#64748b', marginBottom: '20px', fontSize: '13px' }}>
+        <p style={{ color: '#64748b', marginBottom: '12px', fontSize: '12px' }}>
           High-Stakes 2-Card Poker
         </p>
 
@@ -329,10 +324,10 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
           style={{
             display: 'flex',
             gap: '4px',
-            marginBottom: '20px',
+            marginBottom: '12px',
             background: '#0f172a',
-            borderRadius: '10px',
-            padding: '4px',
+            borderRadius: '8px',
+            padding: '3px',
           }}
         >
           {(['play', 'stats', 'achievements'] as const).map((tab) => (
@@ -368,8 +363,8 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
             <div
               style={{
                 display: 'flex',
-                gap: '10px',
-                marginBottom: '16px',
+                gap: '8px',
+                marginBottom: '10px',
               }}
             >
               {multiplayerEnabled && (
@@ -384,17 +379,16 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
                   }}
                   style={{
                     flex: 1,
-                    padding: '14px 12px',
-                    borderRadius: '12px',
+                    padding: '10px 8px',
+                    borderRadius: '10px',
                     border: '2px solid #22c55e',
                     background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.05))',
                     cursor: 'pointer',
                     textAlign: 'center',
                   }}
                 >
-                  <div style={{ fontSize: '24px', marginBottom: '4px' }}>🎮</div>
-                  <div style={{ color: '#4ade80', fontWeight: '700', fontSize: '14px' }}>Multiplayer</div>
-                  <div style={{ color: '#64748b', fontSize: '10px' }}>Play vs humans</div>
+                  <div style={{ fontSize: '20px', marginBottom: '2px' }}>🎮</div>
+                  <div style={{ color: '#4ade80', fontWeight: '700', fontSize: '12px' }}>Multiplayer</div>
                 </button>
               )}
 
@@ -403,8 +397,8 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
                   href="/tournaments"
                   style={{
                     flex: 1,
-                    padding: '14px 12px',
-                    borderRadius: '12px',
+                    padding: '10px 8px',
+                    borderRadius: '10px',
                     border: '2px solid #fbbf24',
                     background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(217, 119, 6, 0.05))',
                     textDecoration: 'none',
@@ -413,16 +407,15 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
                   }}
                   onClick={() => playClick()}
                 >
-                  <div style={{ fontSize: '24px', marginBottom: '4px' }}>🏆</div>
-                  <div style={{ color: '#fbbf24', fontWeight: '700', fontSize: '14px' }}>Tournaments</div>
-                  <div style={{ color: '#64748b', fontSize: '10px' }}>Win big prizes</div>
+                  <div style={{ fontSize: '20px', marginBottom: '2px' }}>🏆</div>
+                  <div style={{ color: '#fbbf24', fontWeight: '700', fontSize: '12px' }}>Tournaments</div>
                 </Link>
               )}
             </div>
 
             {/* Solo Play Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>
                 Solo Practice
               </div>
               <button
@@ -434,191 +427,205 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
                   background: 'transparent',
                   border: '1px solid #334155',
                   borderRadius: '6px',
-                  padding: '4px 10px',
+                  padding: '3px 8px',
                   color: '#64748b',
-                  fontSize: '11px',
+                  fontSize: '10px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  gap: '3px',
                 }}
               >
                 <span>❓</span> How to Play
               </button>
             </div>
 
-            {/* Difficulty Selector */}
+            {/* Difficulty & Players - Combined Row */}
             <div
               style={{
-                background: '#0f172a',
-                borderRadius: '10px',
-                padding: '14px',
-                marginBottom: '16px',
-                border: '1px solid #334155',
-              }}
-            >
-              <h2 style={{ fontWeight: '600', color: '#94a3b8', marginBottom: '10px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Difficulty
-              </h2>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {(Object.keys(DIFFICULTY_CONFIGS) as Difficulty[]).map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => {
-                      playClick();
-                      setDifficulty(d);
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: '10px 8px',
-                      borderRadius: '8px',
-                      border: difficulty === d ? '2px solid #14b8a6' : '1px solid #334155',
-                      background: difficulty === d ? 'rgba(20, 184, 166, 0.1)' : '#1e293b',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    <div style={{ color: difficulty === d ? '#14b8a6' : '#cbd5e1', fontWeight: '600', fontSize: '13px' }}>
-                      {DIFFICULTY_CONFIGS[d].name}
-                    </div>
-                    <div style={{ color: '#64748b', fontSize: '10px', marginTop: '2px' }}>
-                      {DIFFICULTY_CONFIGS[d].description}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Player Count */}
-            <div
-              style={{
-                background: '#0f172a',
-                borderRadius: '10px',
-                padding: '14px',
-                marginBottom: '16px',
-                border: '1px solid #334155',
-              }}
-            >
-              <h2 style={{ fontWeight: '600', color: '#94a3b8', marginBottom: '10px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Players
-              </h2>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
-                {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => {
-                      playClick();
-                      setPlayerCount(num);
-                    }}
-                    style={{
-                      width: '38px',
-                      height: '38px',
-                      borderRadius: '8px',
-                      border: playerCount === num ? '2px solid #14b8a6' : '1px solid #334155',
-                      background: playerCount === num ? '#14b8a6' : '#1e293b',
-                      color: playerCount === num ? '#0f172a' : '#94a3b8',
-                      fontWeight: '600',
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    {num}
-                  </button>
-                ))}
-              </div>
-              <p style={{ color: '#64748b', fontSize: '11px', marginTop: '8px' }}>
-                You + {playerCount - 1} AI
-              </p>
-            </div>
-
-            {/* Trending Names Toggle */}
-            <div
-              style={{
-                background: '#0f172a',
-                borderRadius: '10px',
-                padding: '12px 14px',
-                marginBottom: '16px',
-                border: '1px solid #334155',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                gap: '8px',
+                marginBottom: '10px',
               }}
             >
-              <div>
-                <div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: '600' }}>
-                  Celebrity Names
-                </div>
-                <div style={{ color: '#64748b', fontSize: '10px' }}>
-                  Replace AI names with trending personalities
-                </div>
-              </div>
-              <button
-                onClick={toggleTrendingNames}
-                style={{
-                  width: '48px',
-                  height: '26px',
-                  borderRadius: '13px',
-                  border: 'none',
-                  background: trendingNames ? 'linear-gradient(135deg, #14b8a6, #0f766e)' : '#334155',
-                  cursor: 'pointer',
-                  position: 'relative',
-                  transition: 'all 0.2s',
-                }}
-              >
-                <div
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    background: 'white',
-                    position: 'absolute',
-                    top: '3px',
-                    left: trendingNames ? '25px' : '3px',
-                    transition: 'left 0.2s',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  }}
-                />
-              </button>
-            </div>
-
-            {/* Quick Stats Preview */}
-            {stats && stats.roundsPlayed > 0 && (
+              {/* Difficulty Selector */}
               <div
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '8px',
-                  marginBottom: '16px',
+                  flex: 1,
+                  background: '#0f172a',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  border: '1px solid #334155',
                 }}
               >
-                <div style={{ background: '#0f172a', borderRadius: '8px', padding: '10px', border: '1px solid #334155' }}>
-                  <div style={{ color: '#4ade80', fontSize: '18px', fontWeight: '700' }}>{getWinRate(stats)}%</div>
-                  <div style={{ color: '#64748b', fontSize: '10px' }}>Win Rate</div>
+                <div style={{ fontWeight: '600', color: '#94a3b8', marginBottom: '6px', fontSize: '10px', textTransform: 'uppercase' }}>
+                  Difficulty
                 </div>
-                <div style={{ background: '#0f172a', borderRadius: '8px', padding: '10px', border: '1px solid #334155' }}>
-                  <div style={{ color: '#fbbf24', fontSize: '18px', fontWeight: '700' }}>{formatStatValue(stats.wins)}</div>
-                  <div style={{ color: '#64748b', fontSize: '10px' }}>Wins</div>
-                </div>
-                <div style={{ background: '#0f172a', borderRadius: '8px', padding: '10px', border: '1px solid #334155' }}>
-                  <div style={{ color: '#14b8a6', fontSize: '18px', fontWeight: '700' }}>{stats.bestStreak}</div>
-                  <div style={{ color: '#64748b', fontSize: '10px' }}>Best Streak</div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {(Object.keys(DIFFICULTY_CONFIGS) as Difficulty[]).map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        playClick();
+                        setDifficulty(d);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '6px 4px',
+                        borderRadius: '6px',
+                        border: difficulty === d ? '2px solid #14b8a6' : '1px solid #334155',
+                        background: difficulty === d ? 'rgba(20, 184, 166, 0.1)' : '#1e293b',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <div style={{ color: difficulty === d ? '#14b8a6' : '#cbd5e1', fontWeight: '600', fontSize: '11px' }}>
+                        {DIFFICULTY_CONFIGS[d].name}
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
+
+              {/* Player Count */}
+              <div
+                style={{
+                  background: '#0f172a',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  border: '1px solid #334155',
+                  minWidth: '100px',
+                }}
+              >
+                <div style={{ fontWeight: '600', color: '#94a3b8', marginBottom: '6px', fontSize: '10px', textTransform: 'uppercase' }}>
+                  Players
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      playClick();
+                      setPlayerCount(Math.max(2, playerCount - 1));
+                    }}
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '6px',
+                      border: '1px solid #334155',
+                      background: '#1e293b',
+                      color: '#94a3b8',
+                      fontWeight: '700',
+                      fontSize: '16px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    -
+                  </button>
+                  <div style={{ color: '#14b8a6', fontWeight: '700', fontSize: '18px', minWidth: '24px', textAlign: 'center' }}>
+                    {playerCount}
+                  </div>
+                  <button
+                    onClick={() => {
+                      playClick();
+                      setPlayerCount(Math.min(10, playerCount + 1));
+                    }}
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '6px',
+                      border: '1px solid #334155',
+                      background: '#1e293b',
+                      color: '#94a3b8',
+                      fontWeight: '700',
+                      fontSize: '16px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Trending Names Toggle + Quick Stats */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                marginBottom: '12px',
+              }}
+            >
+              {/* Celebrity Names Toggle */}
+              <div
+                style={{
+                  flex: 1,
+                  background: '#0f172a',
+                  borderRadius: '8px',
+                  padding: '8px 10px',
+                  border: '1px solid #334155',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '600' }}>
+                  Celebrity AI
+                </div>
+                <button
+                  onClick={toggleTrendingNames}
+                  style={{
+                    width: '40px',
+                    height: '22px',
+                    borderRadius: '11px',
+                    border: 'none',
+                    background: trendingNames ? 'linear-gradient(135deg, #14b8a6, #0f766e)' : '#334155',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      background: 'white',
+                      position: 'absolute',
+                      top: '3px',
+                      left: trendingNames ? '21px' : '3px',
+                      transition: 'left 0.2s',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    }}
+                  />
+                </button>
+              </div>
+
+              {/* Quick Stats Preview */}
+              {stats && stats.roundsPlayed > 0 && (
+                <>
+                  <div style={{ background: '#0f172a', borderRadius: '8px', padding: '8px 12px', border: '1px solid #334155', textAlign: 'center' }}>
+                    <div style={{ color: '#4ade80', fontSize: '16px', fontWeight: '700' }}>{getWinRate(stats)}%</div>
+                    <div style={{ color: '#64748b', fontSize: '9px' }}>Win Rate</div>
+                  </div>
+                  <div style={{ background: '#0f172a', borderRadius: '8px', padding: '8px 12px', border: '1px solid #334155', textAlign: 'center' }}>
+                    <div style={{ color: '#fbbf24', fontSize: '16px', fontWeight: '700' }}>{formatStatValue(stats.wins)}</div>
+                    <div style={{ color: '#64748b', fontSize: '9px' }}>Wins</div>
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* Start Button */}
             <button
               onClick={handleStartGame}
               style={{
-                padding: '16px 32px',
-                fontSize: '18px',
+                padding: '14px 28px',
+                fontSize: '16px',
                 fontWeight: '700',
                 color: 'white',
                 width: '100%',
                 background: 'linear-gradient(135deg, #14b8a6, #0f766e)',
                 border: 'none',
-                borderRadius: '12px',
+                borderRadius: '10px',
                 cursor: 'pointer',
                 boxShadow: '0 4px 14px rgba(20, 184, 166, 0.4)',
                 transition: 'transform 0.2s, box-shadow 0.2s',
@@ -635,35 +642,6 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
             >
               {resultMessage ? 'PLAY AGAIN' : 'START GAME'}
             </button>
-
-            {/* Top Favorites (collapsed) */}
-            {topProfiles.filter(p => p.heartsReceived > 0).length > 0 && (
-              <div style={{ marginTop: '16px' }}>
-                <div style={{ color: '#64748b', fontSize: '11px', marginBottom: '8px' }}>
-                  Top Favorites
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  {topProfiles.filter(p => p.heartsReceived > 0).slice(0, 5).map((p) => (
-                    <div
-                      key={p.id}
-                      style={{
-                        background: '#0f172a',
-                        borderRadius: '8px',
-                        padding: '6px 10px',
-                        border: '1px solid #334155',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <span>{p.avatar}</span>
-                      <span style={{ color: '#cbd5e1', fontSize: '12px' }}>{p.name}</span>
-                      <span style={{ color: '#ec4899', fontSize: '10px' }}>❤️{p.heartsReceived}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         )}
 
@@ -747,21 +725,16 @@ export function StartScreen({ onStart, resultMessage, playerCount, setPlayerCoun
 
         {/* Rules (collapsible at bottom) */}
         {activeTab === 'play' && (
-          <details style={{ marginTop: '16px', textAlign: 'left' }}>
-            <summary style={{ color: '#64748b', fontSize: '12px', cursor: 'pointer', padding: '8px 0' }}>
-              How to Play
+          <details style={{ marginTop: '10px', textAlign: 'left' }}>
+            <summary style={{ color: '#64748b', fontSize: '11px', cursor: 'pointer', padding: '4px 0' }}>
+              Quick Rules
             </summary>
-            <div style={{ background: '#0f172a', borderRadius: '10px', padding: '12px', marginTop: '8px', border: '1px solid #334155' }}>
-              <ol style={{ fontSize: '12px', color: '#94a3b8', margin: 0, paddingLeft: '16px' }}>
-                <li style={{ marginBottom: '6px' }}>Each player antes 1 token and gets 2 cards</li>
-                <li style={{ marginBottom: '6px' }}>Choose <span style={{ color: '#4ade80' }}>HOLD</span> or <span style={{ color: '#f87171' }}>DROP</span> in 3 seconds</li>
-                <li style={{ marginBottom: '6px' }}>Winner takes pot, losers match it</li>
-                <li style={{ marginBottom: '6px' }}>Everyone drops? <span style={{ color: '#c084fc' }}>Ghost Hand</span> appears!</li>
-                <li>Lose to ghost? <span style={{ color: '#ef4444' }}>Double</span> the pot!</li>
-              </ol>
-              <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #334155' }}>
-                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Hand Rankings:</div>
-                <div style={{ fontSize: '11px', color: '#f472b6' }}>★ Six-Nine (Best) → Pair → Flush → High Card</div>
+            <div style={{ background: '#0f172a', borderRadius: '8px', padding: '10px', marginTop: '6px', border: '1px solid #334155' }}>
+              <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: '1.5' }}>
+                Ante 1 token → Get 2 cards → <span style={{ color: '#4ade80' }}>HOLD</span> or <span style={{ color: '#f87171' }}>DROP</span> → Winner takes pot, losers match it
+              </div>
+              <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #334155', fontSize: '10px', color: '#f472b6' }}>
+                Rankings: Six-Nine → Pair → Flush → High Card
               </div>
             </div>
           </details>

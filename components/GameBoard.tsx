@@ -93,6 +93,7 @@ import { PlayerAvatar } from './PlayerAvatar';
 import { AvatarStore } from './AvatarStore';
 import { HelpLegend } from './HelpLegend';
 import { BotLeaderboard, BotArenaButton } from './BotLeaderboard';
+import { SplashScreen } from './SplashScreen';
 import {
   PlayerAvatar as AvatarType,
   DEFAULT_AVATAR,
@@ -247,6 +248,7 @@ export function GameBoard() {
   const [revengeTarget, setRevengeTarget] = useState<RevengeTarget | null>(null);
   const [revengeMessage, setRevengeMessage] = useState<string | null>(null);
   const [signUpPromptRound, setSignUpPromptRound] = useState(0);
+  const [showSplash, setShowSplash] = useState(true);
   const [showSignUpPrompt, setShowSignUpPrompt] = useState(false);
   const [botReactions, setBotReactions] = useState<Map<string, string>>(new Map());
 
@@ -1116,6 +1118,9 @@ export function GameBoard() {
   if (gamePhase === 'start') {
     return (
       <>
+        {/* Splash Screen */}
+        {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+
         {/* Top Header Bar - Always visible */}
         <UserHeader
           user={user}
