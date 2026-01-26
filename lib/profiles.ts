@@ -405,3 +405,271 @@ export function selectGameProfiles(count: number, currentProfileIds: string[] = 
 
   return selectedProfiles;
 }
+
+// =====================================================
+// BOT WIN/LOSS TRACKING AND REPLACEMENT SYSTEM
+// =====================================================
+
+// Extended stats for win/loss tracking
+interface BotBattleStats {
+  wins: number;
+  losses: number;
+  winMilestones: number; // Each milestone = 100 extra losses allowed
+  isRetired: boolean;
+  retiredAt?: string;
+  replacedBy?: string;
+}
+
+const BATTLE_STATS_KEY = 'guts_bot_battle_stats';
+const RETIRED_BOTS_KEY = 'guts_retired_bots';
+
+// Loss threshold = 100 base + 100 per win milestone
+export function getBotLossThreshold(winMilestones: number): number {
+  return 100 + (winMilestones * 100);
+}
+
+// Load battle stats
+export function loadBotBattleStats(): Map<string, BotBattleStats> {
+  if (typeof window === 'undefined') return new Map();
+  try {
+    const data = localStorage.getItem(BATTLE_STATS_KEY);
+    if (data) {
+      return new Map(JSON.parse(data));
+    }
+  } catch (e) {
+    console.error('Error loading battle stats:', e);
+  }
+  return new Map();
+}
+
+// Save battle stats
+function saveBotBattleStats(stats: Map<string, BotBattleStats>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(BATTLE_STATS_KEY, JSON.stringify(Array.from(stats.entries())));
+  } catch (e) {
+    console.error('Error saving battle stats:', e);
+  }
+}
+
+// Load retired bots
+export function loadRetiredBots(): Array<{ profile: AIProfile; stats: BotBattleStats; profileStats: { gamesPlayed: number; heartsReceived: number } }> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(RETIRED_BOTS_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    console.error('Error loading retired bots:', e);
+  }
+  return [];
+}
+
+// Save a retired bot
+function saveRetiredBot(profile: AIProfile, battleStats: BotBattleStats, profileStats: { gamesPlayed: number; heartsReceived: number }): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const retired = loadRetiredBots();
+    retired.unshift({
+      profile,
+      stats: { ...battleStats, isRetired: true, retiredAt: new Date().toISOString() },
+      profileStats,
+    });
+    // Keep last 100 retired bots
+    const trimmed = retired.slice(0, 100);
+    localStorage.setItem(RETIRED_BOTS_KEY, JSON.stringify(trimmed));
+  } catch (e) {
+    console.error('Error saving retired bot:', e);
+  }
+}
+
+// Get or create battle stats for a profile
+export function getBotBattleStatsFor(profileId: string): BotBattleStats {
+  const stats = loadBotBattleStats();
+  return stats.get(profileId) || { wins: 0, losses: 0, winMilestones: 0, isRetired: false };
+}
+
+// Record a win for a bot
+export function recordBotWin(profileId: string): { newMilestone: boolean; milestoneNumber: number } {
+  const stats = loadBotBattleStats();
+  const current = stats.get(profileId) || { wins: 0, losses: 0, winMilestones: 0, isRetired: false };
+
+  current.wins++;
+
+  // Check for 100-win milestone
+  const previousMilestones = current.winMilestones;
+  const newMilestones = Math.floor(current.wins / 100);
+  let earnedMilestone = false;
+
+  if (newMilestones > previousMilestones) {
+    current.winMilestones = newMilestones;
+    earnedMilestone = true;
+    console.log(`🏆 Bot ${profileId} earned win milestone #${newMilestones}! Now has ${newMilestones * 100} extra lives.`);
+  }
+
+  stats.set(profileId, current);
+  saveBotBattleStats(stats);
+
+  return { newMilestone: earnedMilestone, milestoneNumber: current.winMilestones };
+}
+
+// Record a loss for a bot - returns replacement info if bot is retired
+export function recordBotLoss(profileId: string): { retired: boolean; replacementId?: string } {
+  const battleStats = loadBotBattleStats();
+  const profileStats = loadProfileStats();
+  const current = battleStats.get(profileId) || { wins: 0, losses: 0, winMilestones: 0, isRetired: false };
+
+  current.losses++;
+
+  // Check if bot should be retired
+  const threshold = getBotLossThreshold(current.winMilestones);
+  if (current.losses >= threshold) {
+    console.log(`💀 Bot ${profileId} RETIRED after ${current.losses} losses! (Threshold: ${threshold})`);
+
+    // Find the profile
+    const profile = AI_PROFILES.find(p => p.id === profileId);
+    if (profile) {
+      const stats = profileStats.get(profileId) || { gamesPlayed: 0, heartsReceived: 0 };
+      saveRetiredBot(profile, current, stats);
+    }
+
+    current.isRetired = true;
+    battleStats.set(profileId, current);
+    saveBotBattleStats(battleStats);
+
+    // Find a replacement bot (one with fewest games who isn't retired)
+    const replacement = findReplacementBot(profileId);
+    return { retired: true, replacementId: replacement?.id };
+  }
+
+  battleStats.set(profileId, current);
+  saveBotBattleStats(battleStats);
+
+  return { retired: false };
+}
+
+// Find a replacement bot for a retired one
+function findReplacementBot(excludeId: string): AIProfile | null {
+  const battleStats = loadBotBattleStats();
+  const profileStats = loadProfileStats();
+
+  // Find bots that aren't retired and haven't played much
+  const available = AI_PROFILES
+    .filter(p => {
+      if (p.id === excludeId) return false;
+      const stats = battleStats.get(p.id);
+      return !stats?.isRetired;
+    })
+    .map(p => ({
+      ...p,
+      gamesPlayed: profileStats.get(p.id)?.gamesPlayed || 0,
+      battleStats: battleStats.get(p.id) || { wins: 0, losses: 0, winMilestones: 0, isRetired: false },
+    }))
+    .sort((a, b) => a.gamesPlayed - b.gamesPlayed);
+
+  return available[0] || null;
+}
+
+// Get bot ranking (sorted by win rate, then total wins)
+export interface RankedBot {
+  profile: AIProfile;
+  rank: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  winMilestones: number;
+  lossesUntilRetirement: number;
+  isRetired: boolean;
+  gamesPlayed: number;
+  heartsReceived: number;
+}
+
+export function getRankedBots(): RankedBot[] {
+  const battleStats = loadBotBattleStats();
+  const profileStats = loadProfileStats();
+
+  const ranked = AI_PROFILES
+    .map(profile => {
+      const battle = battleStats.get(profile.id) || { wins: 0, losses: 0, winMilestones: 0, isRetired: false };
+      const pStats = profileStats.get(profile.id) || { gamesPlayed: 0, heartsReceived: 0 };
+      const totalGames = battle.wins + battle.losses;
+
+      return {
+        profile,
+        rank: 0,
+        wins: battle.wins,
+        losses: battle.losses,
+        winRate: totalGames >= 10 ? battle.wins / totalGames : 0,
+        winMilestones: battle.winMilestones,
+        lossesUntilRetirement: getBotLossThreshold(battle.winMilestones) - battle.losses,
+        isRetired: battle.isRetired,
+        gamesPlayed: pStats.gamesPlayed,
+        heartsReceived: pStats.heartsReceived,
+      };
+    })
+    .filter(bot => !bot.isRetired)
+    .sort((a, b) => {
+      // Primary: win rate (for bots with 10+ games)
+      const aHasEnough = (a.wins + a.losses) >= 10;
+      const bHasEnough = (b.wins + b.losses) >= 10;
+
+      if (aHasEnough && bHasEnough) {
+        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      } else if (aHasEnough) {
+        return -1;
+      } else if (bHasEnough) {
+        return 1;
+      }
+
+      // Secondary: total wins
+      if (b.wins !== a.wins) return b.wins - a.wins;
+
+      // Tertiary: fewer losses
+      return a.losses - b.losses;
+    })
+    .map((bot, index) => ({ ...bot, rank: index + 1 }));
+
+  return ranked;
+}
+
+// Get top N bots
+export function getTopBots(n: number = 10): RankedBot[] {
+  return getRankedBots().slice(0, n);
+}
+
+// Get bots closest to retirement (most at risk)
+export function getBotsAtRisk(n: number = 5): RankedBot[] {
+  return getRankedBots()
+    .filter(bot => bot.lossesUntilRetirement <= 20 && bot.lossesUntilRetirement > 0)
+    .sort((a, b) => a.lossesUntilRetirement - b.lossesUntilRetirement)
+    .slice(0, n);
+}
+
+// Get bot leaderboard stats
+export function getBotLeaderboardStats(): {
+  totalActiveBots: number;
+  totalRetiredBots: number;
+  topWinRate: RankedBot | null;
+  mostWins: RankedBot | null;
+  mostMilestones: RankedBot | null;
+  atRisk: RankedBot[];
+} {
+  const ranked = getRankedBots();
+  const retired = loadRetiredBots();
+
+  const withEnoughGames = ranked.filter(b => (b.wins + b.losses) >= 10);
+
+  return {
+    totalActiveBots: ranked.length,
+    totalRetiredBots: retired.length,
+    topWinRate: withEnoughGames.length > 0
+      ? withEnoughGames.reduce((best, b) => b.winRate > best.winRate ? b : best)
+      : null,
+    mostWins: ranked.length > 0
+      ? ranked.reduce((best, b) => b.wins > best.wins ? b : best)
+      : null,
+    mostMilestones: ranked.length > 0
+      ? ranked.reduce((best, b) => b.winMilestones > best.winMilestones ? b : best)
+      : null,
+    atRisk: getBotsAtRisk(5),
+  };
+}

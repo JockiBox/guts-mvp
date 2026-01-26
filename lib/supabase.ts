@@ -3,6 +3,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 let supabaseInstance: SupabaseClient | null = null;
+let isUsingMockClient = false;
 
 function getSupabase(): SupabaseClient {
   if (supabaseInstance) return supabaseInstance;
@@ -10,9 +11,16 @@ function getSupabase(): SupabaseClient {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  console.log('[SUPABASE INIT] Checking env vars:', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey,
+    url: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'undefined'
+  });
+
   if (!supabaseUrl || !supabaseAnonKey) {
     // Return a mock client for build time
-    console.warn('Supabase not configured - using mock client');
+    console.warn('[SUPABASE INIT] Supabase not configured - using mock client');
+    isUsingMockClient = true;
     return {
       auth: {
         signUp: async () => ({ data: null, error: new Error('Not configured') }),
@@ -30,11 +38,18 @@ function getSupabase(): SupabaseClient {
     } as unknown as SupabaseClient;
   }
 
+  console.log('[SUPABASE INIT] Creating real Supabase client');
+  isUsingMockClient = false;
   supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
   return supabaseInstance;
 }
 
 export const supabase = getSupabase();
+
+// Helper to check if using mock client
+export function isSupabaseMock(): boolean {
+  return isUsingMockClient;
+}
 
 // User profile type
 export interface UserProfile {
@@ -191,10 +206,18 @@ export async function addTokens(userId: string, amount: number) {
 
 // Modify tokens for game actions (rewards, ante, etc.) - fetches fresh data first
 export async function modifyGameTokens(userId: string, change: number): Promise<{ success: boolean; newBalance: number }> {
-  console.log('[SUPABASE] modifyGameTokens called:', { userId, change });
+  console.log('[SUPABASE] ===== modifyGameTokens START =====');
+  console.log('[SUPABASE] Called with:', { userId, change, isMock: isUsingMockClient });
+
+  // Fail fast if using mock client
+  if (isUsingMockClient) {
+    console.error('[SUPABASE] ERROR: Using mock client! Database updates will NOT work.');
+    return { success: false, newBalance: 0 };
+  }
 
   // Always fetch fresh profile to avoid stale data
   const profile = await getUserProfile(userId);
+  console.log('[SUPABASE] Fetched profile:', { found: !!profile, tokens: profile?.tokens });
   if (!profile) {
     console.error('[SUPABASE] Profile not found for user:', userId);
     return { success: false, newBalance: 0 };
@@ -203,20 +226,33 @@ export async function modifyGameTokens(userId: string, change: number): Promise<
   const newBalance = Math.max(0, profile.tokens + change);
   console.log('[SUPABASE] Updating tokens:', { currentTokens: profile.tokens, change, newBalance });
 
-  const { data, error } = await supabase
+  const { data: updateData, error } = await supabase
     .from('profiles')
     .update({ tokens: newBalance })
     .eq('id', userId)
-    .select('tokens')
-    .single();
+    .select('tokens');
+
+  console.log('[SUPABASE] Update response:', { data: updateData, error });
 
   if (error) {
     console.error('[SUPABASE] Error updating tokens:', error);
     return { success: false, newBalance: profile.tokens };
   }
 
-  console.log('[SUPABASE] Tokens updated successfully, DB returned:', data);
-  return { success: true, newBalance: data?.tokens ?? newBalance };
+  // Verify the update by fetching again
+  const updatedProfile = await getUserProfile(userId);
+  console.log('[SUPABASE] Verification fetch:', {
+    expectedBalance: newBalance,
+    actualBalance: updatedProfile?.tokens,
+    matches: updatedProfile?.tokens === newBalance
+  });
+
+  if (updatedProfile?.tokens !== newBalance) {
+    console.warn('[SUPABASE] WARNING: Token balance mismatch after update!');
+  }
+
+  console.log('[SUPABASE] ===== modifyGameTokens END =====');
+  return { success: true, newBalance: updatedProfile?.tokens ?? newBalance };
 }
 
 export async function spendTokens(userId: string, amount: number): Promise<boolean> {
@@ -493,4 +529,66 @@ export async function getActiveAnnouncements(): Promise<Array<{ id: string; titl
   } catch {
     return [];
   }
+}
+
+// Debug function - call from browser console: window.testTokenUpdate()
+if (typeof window !== 'undefined') {
+  (window as unknown as { testTokenUpdate: () => Promise<void> }).testTokenUpdate = async () => {
+    console.log('=== TOKEN UPDATE TEST ===');
+
+    // Step 1: Check if we have a session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    console.log('1. Session check:', { hasSession: !!session, userId: session?.user?.id, error: sessionError });
+
+    if (!session?.user) {
+      console.log('ERROR: No authenticated session. User must be logged in.');
+      return;
+    }
+
+    // Step 2: Get current profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+    console.log('2. Profile fetch:', { tokens: profile?.tokens, error: profileError });
+
+    if (!profile) {
+      console.log('ERROR: Could not fetch profile');
+      return;
+    }
+
+    // Step 3: Try to update tokens (add 1)
+    const newBalance = profile.tokens + 1;
+    const { data: updateData, error: updateError } = await supabase
+      .from('profiles')
+      .update({ tokens: newBalance })
+      .eq('id', session.user.id)
+      .select();
+    console.log('3. Update attempt:', { newBalance, updateData, error: updateError });
+
+    // Step 4: Verify the update
+    const { data: verifyProfile, error: verifyError } = await supabase
+      .from('profiles')
+      .select('tokens')
+      .eq('id', session.user.id)
+      .single();
+    console.log('4. Verification:', { beforeTokens: profile.tokens, afterTokens: verifyProfile?.tokens, error: verifyError });
+
+    if (verifyProfile && verifyProfile.tokens === newBalance) {
+      console.log('SUCCESS: Token update worked! Tokens went from', profile.tokens, 'to', verifyProfile.tokens);
+      console.log('Now subtracting 1 to restore original balance...');
+      await supabase
+        .from('profiles')
+        .update({ tokens: profile.tokens })
+        .eq('id', session.user.id);
+      console.log('Restored to original balance:', profile.tokens);
+    } else {
+      console.log('FAILURE: Token update did not persist. Check RLS policies.');
+      console.log('Expected:', newBalance, 'Got:', verifyProfile?.tokens);
+    }
+
+    console.log('=== TEST COMPLETE ===');
+  };
+  console.log('Token test available: run window.testTokenUpdate() in console');
 }

@@ -12,7 +12,7 @@ import type {
   Decision,
 } from './types';
 import { RANK_VALUES, SUIT_VALUES } from './types';
-import { AI_PROFILES, selectGameProfiles, getTrashTalk, loadProfileStats, saveProfileStats, loadHeartedProfiles, saveHeartedProfiles, incrementGamesPlayed as incrementProfileGamesPlayed, getExperienceBonus, getProfileLevel, getLevelDisplay, type AIProfile } from './profiles';
+import { AI_PROFILES, selectGameProfiles, getTrashTalk, loadProfileStats, saveProfileStats, loadHeartedProfiles, saveHeartedProfiles, incrementGamesPlayed as incrementProfileGamesPlayed, getExperienceBonus, getProfileLevel, getLevelDisplay, recordBotWin, recordBotLoss, type AIProfile } from './profiles';
 import { loadDifficulty, saveDifficulty, getDifficultyConfig, type Difficulty } from './difficulty';
 import { updateStatsAfterRound, incrementGamesPlayed as incrementPlayerGames, type Achievement } from './stats';
 import { getRandomPowerUpWeighted, clearSessionPowerUps, POWER_UPS, type PowerUpType } from './powerups';
@@ -905,6 +905,28 @@ export function useGutsGame() {
       if (activeProfileIds.length > 0) {
         incrementProfileGamesPlayed(activeProfileIds);
       }
+
+      // Record wins/losses for AI bots (for ranking and replacement system)
+      state.players.forEach(player => {
+        if (player.isHuman || !player.profileId) return;
+
+        if (state.winners.includes(player.id)) {
+          // Bot won!
+          const { newMilestone, milestoneNumber } = recordBotWin(player.profileId);
+          if (newMilestone) {
+            console.log(`🏆 ${player.name} earned win milestone #${milestoneNumber}! Extra lives earned!`);
+          }
+        } else if (state.losers.includes(player.id)) {
+          // Bot lost
+          const { retired, replacementId } = recordBotLoss(player.profileId);
+          if (retired) {
+            console.log(`💀 ${player.name} has been RETIRED after too many losses!`);
+            if (replacementId) {
+              console.log(`🆕 A new challenger will take their place!`);
+            }
+          }
+        }
+      });
 
       // Track player stats
       const human = state.players.find(p => p.isHuman);

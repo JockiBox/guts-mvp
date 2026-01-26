@@ -92,6 +92,7 @@ import { getReactionForSituation, getWinReaction, getLoseReaction } from '@/lib/
 import { PlayerAvatar } from './PlayerAvatar';
 import { AvatarStore } from './AvatarStore';
 import { HelpLegend } from './HelpLegend';
+import { BotLeaderboard, BotArenaButton } from './BotLeaderboard';
 import {
   PlayerAvatar as AvatarType,
   DEFAULT_AVATAR,
@@ -229,6 +230,7 @@ export function GameBoard() {
   const [showAchievements, setShowAchievements] = useState(false);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
   const [showSideBets, setShowSideBets] = useState(false);
+  const [showBotArena, setShowBotArena] = useState(false);
   const [showSideBetResults, setSideBetResults] = useState<SideBetResult[] | null>(null);
 
   // New engagement feature states
@@ -326,15 +328,24 @@ export function GameBoard() {
 
   // Helper to add tokens - works for both logged-in users and guests
   const addTokens = useCallback(async (amount: number) => {
-    console.log('[TOKENS] addTokens called:', { amount, isLoggedIn: !!user, userId: user?.id });
-    if (user) {
-      // Logged-in user: update database directly (avoids closure issues)
-      const result = await modifyGameTokens(user.id, amount);
-      console.log('[TOKENS] Database result:', result);
-      if (result.success) {
-        // MUST await fetchProfile to ensure UI updates with fresh data
-        await fetchProfile();
-        console.log('[TOKENS] Profile refreshed after adding tokens');
+    console.log('[TOKENS] ===== ADD TOKENS START =====');
+    console.log('[TOKENS] addTokens called:', { amount, isLoggedIn: !!user, userId: user?.id, userTokens: user?.tokens });
+    if (user && user.id) {
+      try {
+        // Logged-in user: update database directly (avoids closure issues)
+        console.log('[TOKENS] Calling modifyGameTokens with userId:', user.id, 'amount:', amount);
+        const result = await modifyGameTokens(user.id, amount);
+        console.log('[TOKENS] Database result:', result);
+        if (result.success) {
+          // MUST await fetchProfile to ensure UI updates with fresh data
+          console.log('[TOKENS] Update successful, refreshing profile...');
+          await fetchProfile();
+          console.log('[TOKENS] Profile refreshed after adding tokens');
+        } else {
+          console.error('[TOKENS] Database update failed:', result);
+        }
+      } catch (error) {
+        console.error('[TOKENS] Error in addTokens:', error);
       }
     } else {
       // Guest: update localStorage + local state
@@ -344,19 +355,29 @@ export function GameBoard() {
       console.log('[TOKENS] Guest add:', { before, after, amount });
       setLocalTokens(after);
     }
+    console.log('[TOKENS] ===== ADD TOKENS END =====');
   }, [user, fetchProfile]);
 
   // Helper to deduct tokens - works for both logged-in users and guests
   const deductTokens = useCallback(async (amount: number) => {
-    console.log('[TOKENS] deductTokens called:', { amount, isLoggedIn: !!user, userId: user?.id });
-    if (user) {
-      // Logged-in user: update database directly (avoids closure issues)
-      const result = await modifyGameTokens(user.id, -amount);
-      console.log('[TOKENS] Database result:', result);
-      if (result.success) {
-        // MUST await fetchProfile to ensure UI updates with fresh data
-        await fetchProfile();
-        console.log('[TOKENS] Profile refreshed after deducting tokens');
+    console.log('[TOKENS] ===== DEDUCT TOKENS START =====');
+    console.log('[TOKENS] deductTokens called:', { amount, isLoggedIn: !!user, userId: user?.id, userTokens: user?.tokens });
+    if (user && user.id) {
+      try {
+        // Logged-in user: update database directly (avoids closure issues)
+        console.log('[TOKENS] Calling modifyGameTokens with userId:', user.id, 'amount:', -amount);
+        const result = await modifyGameTokens(user.id, -amount);
+        console.log('[TOKENS] Database result:', result);
+        if (result.success) {
+          // MUST await fetchProfile to ensure UI updates with fresh data
+          console.log('[TOKENS] Update successful, refreshing profile...');
+          await fetchProfile();
+          console.log('[TOKENS] Profile refreshed after deducting tokens');
+        } else {
+          console.error('[TOKENS] Database update failed:', result);
+        }
+      } catch (error) {
+        console.error('[TOKENS] Error in deductTokens:', error);
       }
     } else {
       // Guest: update localStorage + local state
@@ -366,6 +387,7 @@ export function GameBoard() {
       console.log('[TOKENS] Guest deduct:', { before, after, amount });
       setLocalTokens(after);
     }
+    console.log('[TOKENS] ===== DEDUCT TOKENS END =====');
   }, [user, fetchProfile]);
 
   // Handle emote from player
@@ -433,18 +455,21 @@ export function GameBoard() {
   }, [user]);
 
   // Handle mystery box reward
-  const handleMysteryBoxReward = useCallback((reward: MysteryBoxReward) => {
-    console.log('[MYSTERY BOX] Reward received:', reward);
+  const handleMysteryBoxReward = useCallback(async (reward: MysteryBoxReward) => {
+    console.log('[MYSTERY BOX] ===== REWARD START =====');
+    console.log('[MYSTERY BOX] Reward received:', reward, 'user:', user?.id);
     if (reward.type === 'tokens' && reward.value) {
       const amount = typeof reward.value === 'number' ? reward.value : parseInt(reward.value, 10);
       console.log('[MYSTERY BOX] Adding tokens:', amount);
-      addTokens(amount);
+      await addTokens(amount);
+      console.log('[MYSTERY BOX] addTokens completed');
     } else {
       console.log('[MYSTERY BOX] Not a token reward or no value:', { type: reward.type, value: reward.value });
     }
     // Other reward types would unlock items in wallet
     setWallet(loadWallet());
     playWin();
+    console.log('[MYSTERY BOX] ===== REWARD END =====');
   }, [addTokens]);
 
   // Handle wheel spin reward
@@ -465,24 +490,26 @@ export function GameBoard() {
   }, [user]);
 
   // Wrapper for startGame - new game always starts with pot=0, so ante is always collected
-  const handleStartGame = useCallback((numPlayers?: number) => {
-    console.log('[GAME] handleStartGame called - deducting ante (new game)');
-    deductTokens(1); // Deduct ante from account (game state handles its own)
+  const handleStartGame = useCallback(async (numPlayers?: number) => {
+    console.log('[GAME] handleStartGame called - deducting ante (new game), user:', user?.id);
+    await deductTokens(1); // Deduct ante from account (game state handles its own)
+    console.log('[GAME] Ante deducted, starting game');
     startGame(numPlayers);
-  }, [startGame, deductTokens]);
+  }, [startGame, deductTokens, user]);
 
   // Wrapper for nextRound - only deduct ante from account if pot is empty
-  const handleNextRound = useCallback(() => {
-    console.log('[GAME] handleNextRound called, pot:', pot);
+  const handleNextRound = useCallback(async () => {
+    console.log('[GAME] handleNextRound called, pot:', pot, 'user:', user?.id);
     // Only deduct ante if pot is empty (losers didn't match, or everyone dropped)
     if (pot === 0) {
       console.log('[GAME] Pot is empty - deducting ante');
-      deductTokens(1);
+      await deductTokens(1);
+      console.log('[GAME] Ante deducted');
     } else {
       console.log('[GAME] Pot has', pot, 'tokens - no ante needed (losers matched)');
     }
     nextRound();
-  }, [nextRound, pot, deductTokens]);
+  }, [nextRound, pot, deductTokens, user]);
 
   // Generate bot rivalry messages occasionally
   useEffect(() => {
@@ -1709,6 +1736,22 @@ export function GameBoard() {
             title="Achievements"
           >
             🏆
+          </button>
+
+          {/* Bot Arena */}
+          <button
+            onClick={() => { playClick(); setShowBotArena(true); }}
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              border: '2px solid #334155',
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+            title="Bot Arena Rankings"
+          >
+            🤖
           </button>
 
           {/* Theme Selector */}
@@ -3014,6 +3057,12 @@ export function GameBoard() {
         isOpen={showMysteryBox}
         onClose={() => setShowMysteryBox(false)}
         onReward={handleMysteryBoxReward}
+      />
+
+      {/* Bot Arena Leaderboard */}
+      <BotLeaderboard
+        isOpen={showBotArena}
+        onClose={() => setShowBotArena(false)}
       />
 
       {/* Game Mode Selector */}
