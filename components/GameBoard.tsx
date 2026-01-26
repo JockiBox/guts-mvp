@@ -80,7 +80,7 @@ import { ComboNotification, ComboStack } from './ComboNotification';
 import { GameModeSelector } from './GameModeSelector';
 import { loadWallet, Wallet } from '@/lib/wallet';
 import { loadWheelState, recordWinForWheel, WheelState } from '@/lib/luckyWheel';
-import { checkForMysteryBox, MysteryBoxReward } from '@/lib/mysteryBox';
+import { checkForMysteryBox, resetMysteryBoxCheck, MysteryBoxReward } from '@/lib/mysteryBox';
 import { getRandomGhostWinStory, GhostStory } from '@/lib/ghostStories';
 import { recordLossToBot, checkRevenge, completeRevenge, getTopRevengeTarget, RevengeTarget } from '@/lib/revengeTracker';
 import { checkCombos, resetSessionCombos, Combo } from '@/lib/comboBonuses';
@@ -537,6 +537,7 @@ export function GameBoard() {
     console.log('[GAME] handleStartGame called - deducting ante (new game), user:', user?.id);
     await deductTokens(1); // Deduct ante from account (game state handles its own)
     console.log('[GAME] Ante deducted, starting game');
+    resetMysteryBoxCheck(); // Reset the mystery box round tracker
     startGame(numPlayers);
   }, [startGame, deductTokens, user]);
 
@@ -843,9 +844,12 @@ export function GameBoard() {
       }
 
       // Check for mystery box (random chance each round for all players)
-      const mysteryBoxResult = checkForMysteryBox();
-      if (mysteryBoxResult.appears) {
-        setTimeout(() => setShowMysteryBox(true), 2000);
+      // Only check if not already showing and pass roundNumber to prevent duplicate checks
+      if (!showMysteryBox) {
+        const mysteryBoxResult = checkForMysteryBox(roundNumber);
+        if (mysteryBoxResult.appears) {
+          setTimeout(() => setShowMysteryBox(true), 2000);
+        }
       }
 
       // Award XP and update progress
@@ -898,7 +902,7 @@ export function GameBoard() {
         checkModeUnlocks(loadAchievements().totalWins, currentTokens);
       }
     }
-  }, [gamePhase, humanPlayer, winners, losers, ghostHands, players, pot, user, winStreak, roundNumber, addTokens]);
+  }, [gamePhase, humanPlayer, winners, losers, ghostHands, players, pot, user, winStreak, roundNumber, addTokens, showMysteryBox]);
 
   // Sign-up prompt for guests (every 5 rounds)
   useEffect(() => {

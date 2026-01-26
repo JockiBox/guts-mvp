@@ -64,25 +64,41 @@ export function saveMysteryBoxState(state: MysteryBoxState): void {
   }
 }
 
-export function checkForMysteryBox(): { appears: boolean; state: MysteryBoxState } {
+// Track the last round we checked to prevent duplicate checks
+let lastCheckedRound = -1;
+
+export function checkForMysteryBox(roundNumber: number): { appears: boolean; state: MysteryBoxState } {
+  // Prevent duplicate checks for the same round
+  if (roundNumber === lastCheckedRound) {
+    return { appears: false, state: loadMysteryBoxState() };
+  }
+  lastCheckedRound = roundNumber;
+
   const state = loadMysteryBoxState();
   state.roundsSinceLastBox += 1;
 
+  let appears = false;
+
   // Guaranteed box after 15 rounds
   if (state.roundsSinceLastBox >= 15) {
-    return { appears: true, state };
+    appears = true;
   }
-
-  // Increasing chance after 7 rounds
-  if (state.roundsSinceLastBox >= 7) {
-    const chance = BOX_CHANCE + ((state.roundsSinceLastBox - 7) * 0.05);
+  // Increasing chance after 7 rounds (but lower base chance)
+  else if (state.roundsSinceLastBox >= 7) {
+    const chance = 0.05 + ((state.roundsSinceLastBox - 7) * 0.03); // 5% base + 3% per extra round
     if (Math.random() < chance) {
-      return { appears: true, state };
+      appears = true;
     }
   }
 
+  // Always save state (but don't reset counter - that happens on open)
   saveMysteryBoxState(state);
-  return { appears: false, state };
+  return { appears, state };
+}
+
+// Reset the check tracker (call on game start/reset)
+export function resetMysteryBoxCheck(): void {
+  lastCheckedRound = -1;
 }
 
 export function openMysteryBox(): { reward: MysteryBoxReward; state: MysteryBoxState } {
