@@ -49,6 +49,7 @@ export interface GameState {
   players: Player[];
   pot: number;
   potWon: number; // Amount won in the last round (for tracking)
+  potMatched: number; // Original pot that losers had to match (for tracking losses)
   gamePhase: GamePhase;
   countdown: number | null;
   ghostHands: GhostHand[];

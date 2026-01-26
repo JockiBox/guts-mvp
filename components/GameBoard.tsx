@@ -226,11 +226,16 @@ function DailyRewardToast({ tokens, streak, onClose }: { tokens: number; streak:
 
 export function GameBoard() {
   const { user, loading: userLoading, canClaimDaily, fetchProfile, claimDaily, buyItem, purchaseTokens } = useUser();
-  const { state, humanPlayer, startGame, resetToStart, makeHumanDecision, nextRound, playerCount, setPlayerCount, heartProfile, isProfileHearted, difficulty, setDifficulty, newAchievements, clearNewAchievements, setHumanTokens } = useGutsGame();
+
+  // Pause state - must be declared before useGutsGame so we can pass it
+  const [isPaused, setIsPaused] = useState(false);
+
+  const { state, humanPlayer, startGame, resetToStart, makeHumanDecision, nextRound, playerCount, setPlayerCount, heartProfile, isProfileHearted, difficulty, setDifficulty, newAchievements, clearNewAchievements, setHumanTokens } = useGutsGame(isPaused);
   const {
     players,
     pot,
     potWon,
+    potMatched,
     gamePhase,
     countdown,
     ghostHands,
@@ -333,8 +338,7 @@ export function GameBoard() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [floatingChatEmote, setFloatingChatEmote] = useState<{ message: ChatMessage; position: { x: number; y: number } } | null>(null);
 
-  // Pause system state
-  const [isPaused, setIsPaused] = useState(false);
+  // Pause system state (isPaused is declared earlier, before useGutsGame)
   const [pauseTimeRemaining, setPauseTimeRemaining] = useState(0);
   const [pauseTokens, setPauseTokens] = useState(1);
   const [pauseTokenEarned, setPauseTokenEarned] = useState(false);
@@ -958,9 +962,9 @@ export function GameBoard() {
       const lost = losers.includes(humanPlayer.id);
 
       // Use potWon for winnings (the pot that was actually won before losers matched)
-      // For losses, losers match the original pot (which is now in potWon when ghost wins, or pot when player wins)
+      // For losses, use potMatched which tracks the original pot that losers had to match
       const tokensWon = won ? potWon : 0;
-      const tokensLost = lost ? pot : 0; // Losers pay into the new pot
+      const tokensLost = lost ? potMatched : 0; // Losers match the original pot
 
       if (tokensWon > 0 || tokensLost > 0) {
         if (user) {
@@ -983,7 +987,7 @@ export function GameBoard() {
     if (gamePhase === 'decision') {
       gameResultRecorded.current = false;
     }
-  }, [gamePhase, humanPlayer, user, winners, losers, pot, potWon, fetchProfile, addTokens, deductTokens]);
+  }, [gamePhase, humanPlayer, user, winners, losers, pot, potWon, potMatched, fetchProfile, addTokens, deductTokens]);
 
   // Initialize sound state from localStorage
   useEffect(() => {

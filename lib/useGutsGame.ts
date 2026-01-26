@@ -293,6 +293,7 @@ const initialState: GameState = {
   players: createInitialPlayers(),
   pot: 0,
   potWon: 0,
+  potMatched: 0,
   gamePhase: 'start',
   countdown: null,
   ghostHands: [],
@@ -307,7 +308,7 @@ const initialState: GameState = {
   roundNumber: 0,
 };
 
-export function useGutsGame() {
+export function useGutsGame(isPaused: boolean = false) {
   const [state, setState] = useState<GameState>(initialState);
   const [playerCount, setPlayerCount] = useState(5);
   const [difficulty, setDifficultyState] = useState<Difficulty>('normal');
@@ -599,6 +600,7 @@ export function useGutsGame() {
         players: newPlayers,
         pot: newPot,
         potWon: playerWon ? prev.pot : 0,
+        potMatched: prev.pot, // Store original pot for loss calculation
         ghostHands: newGhostHands,
         winners: playerWon ? [winner.id] : [],
         losers: loserIds,
@@ -747,6 +749,9 @@ export function useGutsGame() {
 
   // Countdown effect
   useEffect(() => {
+    // Don't run countdown when paused
+    if (isPaused) return;
+
     if (state.gamePhase === 'decision' && state.countdown !== null) {
       if (state.countdown > 0) {
         countdownProcessedRef.current = false;
@@ -796,7 +801,7 @@ export function useGutsGame() {
         setTimeout(() => startRevealPhase(), 500);
       }
     }
-  }, [state.countdown, state.gamePhase, makeAIDecisions, startRevealPhase]);
+  }, [state.countdown, state.gamePhase, makeAIDecisions, startRevealPhase, isPaused]);
 
   // Reveal sequence effect - triggered when gamePhase becomes 'reveal'
   useEffect(() => {
