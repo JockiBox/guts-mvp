@@ -67,6 +67,7 @@ export function ProfileModal({ isOpen, onClose, user, onUpdate, onSignOut }: Pro
     if (isOpen && activeTab === 'history' && gameHistory.length === 0) {
       loadGameHistory();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, activeTab, user.id]);
 
   const loadGameHistory = async () => {

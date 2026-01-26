@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { playClick } from '@/lib/sounds';
 
 interface TutorialProps {
@@ -344,16 +344,16 @@ export function Tutorial({ isOpen, onClose, onComplete }: TutorialProps) {
 
 // Hook to check if tutorial should be shown
 export function useTutorial() {
-  const shouldShowTutorial = () => {
+  const shouldShowTutorial = useCallback(() => {
     if (typeof window === 'undefined') return false;
     return !localStorage.getItem('guts_tutorial_complete');
-  };
+  }, []);
 
-  const resetTutorial = () => {
+  const resetTutorial = useCallback(() => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('guts_tutorial_complete');
     }
-  };
+  }, []);
 
   return { shouldShowTutorial, resetTutorial };
 }

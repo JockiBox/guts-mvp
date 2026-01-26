@@ -1,14 +1,39 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 interface SplashScreenProps {
   onComplete: () => void;
 }
 
+interface ParticleData {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  colorIndex: number;
+  duration: number;
+  delay: number;
+}
+
 export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [phase, setPhase] = useState<'cards' | 'title' | 'tagline' | 'done'>('cards');
   const [cardsDealt, setCardsDealt] = useState(0);
+  const [particles, setParticles] = useState<ParticleData[]>([]);
+
+  // Generate random particles only on client side to avoid hydration mismatch
+  useEffect(() => {
+    const generatedParticles: ParticleData[] = [...Array(20)].map(() => ({
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      width: 4 + Math.random() * 8,
+      height: 4 + Math.random() * 8,
+      colorIndex: Math.floor(Math.random() * 3),
+      duration: 3 + Math.random() * 4,
+      delay: Math.random() * 2,
+    }));
+    setParticles(generatedParticles);
+  }, []);
 
   useEffect(() => {
     // Deal cards animation
@@ -53,20 +78,20 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
     >
       {/* Animated background particles */}
       <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-        {[...Array(20)].map((_, i) => (
+        {particles.map((particle, i) => (
           <div
             key={i}
             style={{
               position: 'absolute',
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              width: `${4 + Math.random() * 8}px`,
-              height: `${4 + Math.random() * 8}px`,
+              left: `${particle.left}%`,
+              top: `${particle.top}%`,
+              width: `${particle.width}px`,
+              height: `${particle.height}px`,
               borderRadius: '50%',
-              background: i % 3 === 0 ? '#14b8a6' : i % 3 === 1 ? '#fbbf24' : '#ef4444',
+              background: particle.colorIndex === 0 ? '#14b8a6' : particle.colorIndex === 1 ? '#fbbf24' : '#ef4444',
               opacity: 0.3,
-              animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 2}s`,
+              animation: `float ${particle.duration}s ease-in-out infinite`,
+              animationDelay: `${particle.delay}s`,
             }}
           />
         ))}

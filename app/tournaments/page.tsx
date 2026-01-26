@@ -51,6 +51,7 @@ export default function TournamentsPage() {
     if (tournamentsEnabled && user && tournaments.length > 0) {
       checkRegistrations();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentsEnabled, user, tournaments]);
 
   // Check if tournaments are disabled

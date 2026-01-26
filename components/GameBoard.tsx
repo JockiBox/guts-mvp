@@ -517,6 +517,7 @@ export function GameBoard() {
     setWallet(loadWallet());
     playWin();
     console.log('[MYSTERY BOX] ===== REWARD END =====');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addTokens]);
 
   // Handle wheel spin reward
@@ -906,17 +907,23 @@ export function GameBoard() {
         checkModeUnlocks(loadAchievements().totalWins, currentTokens);
       }
     }
-  }, [gamePhase, humanPlayer, winners, losers, ghostHands, players, pot, user, winStreak, roundNumber, addTokens, showMysteryBox]);
+  }, [gamePhase, humanPlayer, winners, losers, ghostHands, players, pot, potWon, user, winStreak, roundNumber, addTokens, showMysteryBox]);
 
   // Sign-up prompt for guests (every 5 rounds)
+  // Track previous phase to only trigger when entering decision phase
+  const prevPhaseForPrompt = useRef(gamePhase);
   useEffect(() => {
-    if (gamePhase === 'decision' && !user) {
-      setSignUpPromptRound(prev => prev + 1);
-      if (signUpPromptRound > 0 && signUpPromptRound % 5 === 0) {
-        setShowSignUpPrompt(true);
-      }
+    if (gamePhase === 'decision' && prevPhaseForPrompt.current !== 'decision' && !user) {
+      setSignUpPromptRound(prev => {
+        const newRound = prev + 1;
+        if (newRound > 0 && newRound % 5 === 0) {
+          setShowSignUpPrompt(true);
+        }
+        return newRound;
+      });
     }
-  }, [gamePhase, user, signUpPromptRound]);
+    prevPhaseForPrompt.current = gamePhase;
+  }, [gamePhase, user]);
 
   // Bot reactions during reveal
   useEffect(() => {

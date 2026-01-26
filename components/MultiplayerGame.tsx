@@ -85,6 +85,7 @@ export function MultiplayerGame({ room, user, initialPlayers, onLeave }: Multipl
     return () => {
       channel.unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room.id]);
 
   // Handle game actions from broadcast
@@ -165,6 +166,7 @@ export function MultiplayerGame({ room, user, initialPlayers, onLeave }: Multipl
           break;
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [room.id, user.id]
   );
 
@@ -195,6 +197,7 @@ export function MultiplayerGame({ room, user, initialPlayers, onLeave }: Multipl
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room.settings.decisionTime, myDecision]);
 
   // Generate result message
