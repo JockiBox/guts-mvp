@@ -94,6 +94,26 @@ import { AvatarStore } from './AvatarStore';
 import { HelpLegend } from './HelpLegend';
 import { BotLeaderboard, BotArenaButton } from './BotLeaderboard';
 import { SplashScreen } from './SplashScreen';
+
+// New feature components
+import { XPProgressBar, LevelUpNotification } from './XPProgressBar';
+import { HandOddsDisplay } from './HandOddsDisplay';
+import { ChatEmotesPanel, FloatingChatEmote, QuickEmoteButton } from './ChatEmotes';
+import { HandHistorySidebar, HandHistoryButton } from './HandHistorySidebar';
+import { WeeklyChallengesModal, WeeklyChallengeBadge } from './WeeklyChallengesModal';
+import { SettingsModal, SettingsButton } from './SettingsModal';
+import { DailyLoginCalendar, DailyLoginBadge } from './DailyLoginCalendar';
+import { BattlePassModal, BattlePassBadge } from './BattlePassModal';
+import { WinnerCelebration, StreakCelebration, TokenGainAnimation, GhostRevealCelebration } from './WinnerCelebration';
+import { QuickRematchButton, GameOverScreen } from './QuickRematchButton';
+import { ChipStackingPot } from './ChipStackingPot';
+import { addXP, loadXPState, getXPProgress, XPState } from '@/lib/xpSystem';
+import { updateWeeklyChallengeProgress, getWeeklyStats } from '@/lib/weeklyChallenges';
+import { recordHand, getHandStats, HandRecord } from '@/lib/handHistory';
+import { loadSettings, GameSettings } from '@/lib/gameModeSettings';
+import { loadBattlePass, addBattlePassXP, BattlePassState } from '@/lib/battlePass';
+import { ChatMessage } from '@/lib/chatEmotes';
+
 import {
   PlayerAvatar as AvatarType,
   DEFAULT_AVATAR,
@@ -297,6 +317,22 @@ export function GameBoard() {
   const [closeCallMessage, setCloseCallMessage] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
 
+  // New feature states
+  const [showWeeklyChallenges, setShowWeeklyChallenges] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showDailyLogin, setShowDailyLogin] = useState(false);
+  const [showBattlePass, setShowBattlePass] = useState(false);
+  const [showHandHistory, setShowHandHistory] = useState(false);
+  const [gameSettings, setGameSettings] = useState<GameSettings | null>(null);
+  const [xpState, setXpState] = useState<XPState | null>(null);
+  const [battlePassState, setBattlePassState] = useState<BattlePassState | null>(null);
+  const [levelUpPopup, setLevelUpPopup] = useState<{ level: number; reward?: { tokens: number; title?: string } } | null>(null);
+  const [showWinnerCelebration, setShowWinnerCelebration] = useState<{ winnerName: string; tokensWon: number; isHuman: boolean } | null>(null);
+  const [showStreakCelebration, setShowStreakCelebration] = useState(false);
+  const [tokenAnimation, setTokenAnimation] = useState<{ amount: number; position: { x: number; y: number } } | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [floatingChatEmote, setFloatingChatEmote] = useState<{ message: ChatMessage; position: { x: number; y: number } } | null>(null);
+
   // Pause system state
   const [isPaused, setIsPaused] = useState(false);
   const [pauseTimeRemaining, setPauseTimeRemaining] = useState(0);
@@ -326,6 +362,11 @@ export function GameBoard() {
     setRevengeTarget(getTopRevengeTarget());
     resetSessionCombos();
     setLocalTokens(getGuestTokens()); // Initialize from localStorage
+
+    // Initialize new features
+    setGameSettings(loadSettings());
+    setXpState(loadXPState());
+    setBattlePassState(loadBattlePass());
   }, []);
 
   // Helper to add tokens - works for both logged-in users and guests
@@ -806,6 +847,50 @@ export function GameBoard() {
       if (mysteryBoxResult.appears) {
         setTimeout(() => setShowMysteryBox(true), 2000);
       }
+
+      // Award XP and update progress
+      if (won) {
+        const xpAmount = 25 + (wasPair ? 10 : 0) + (beatGhost ? 20 : 0) + (isSixNine ? 50 : 0);
+        const xpResult = addXP(xpAmount);
+        setXpState(xpResult.newState);
+        if (xpResult.leveledUp && xpResult.newLevel) {
+          setLevelUpPopup({ level: xpResult.newLevel, reward: xpResult.reward });
+        }
+
+        // Add battle pass XP
+        addBattlePassXP(xpAmount);
+        setBattlePassState(loadBattlePass());
+
+        // Update weekly challenges
+        updateWeeklyChallengeProgress('wins', 1);
+        updateWeeklyChallengeProgress('tokens_won', potWon || 0);
+        if (beatGhost) updateWeeklyChallengeProgress('ghosts', 1);
+        if (winStreak >= 3) updateWeeklyChallengeProgress('streaks', 1);
+
+        // Show winner celebration for significant wins
+        if (potWon && potWon >= 5) {
+          setShowWinnerCelebration({
+            winnerName: user?.username || 'You',
+            tokensWon: potWon,
+            isHuman: true,
+          });
+        }
+
+        // Show streak celebration
+        if (winStreak >= 3) {
+          setShowStreakCelebration(true);
+        }
+      } else if (lost) {
+        // Award small XP for participating
+        const xpResult = addXP(5);
+        setXpState(xpResult.newState);
+        addBattlePassXP(5);
+        setBattlePassState(loadBattlePass());
+      }
+
+      // Update round tracking
+      updateWeeklyChallengeProgress('rounds', 1);
+      updateWeeklyChallengeProgress('games', roundNumber === 1 ? 1 : 0);
 
       // Check game mode unlocks
       if (won && user) {
@@ -1849,6 +1934,86 @@ export function GameBoard() {
               </span>
             </button>
           )}
+
+          {/* Weekly Challenges */}
+          <button
+            onClick={() => { playClick(); setShowWeeklyChallenges(true); }}
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              border: '2px solid #a855f7',
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+            title="Weekly Challenges"
+          >
+            📅
+          </button>
+
+          {/* Battle Pass */}
+          <button
+            onClick={() => { playClick(); setShowBattlePass(true); }}
+            style={{
+              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(124, 58, 237, 0.2))',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              border: '2px solid #a855f7',
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+            title="Battle Pass"
+          >
+            🎖️
+          </button>
+
+          {/* Daily Login */}
+          <button
+            onClick={() => { playClick(); setShowDailyLogin(true); }}
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              border: '2px solid #fbbf24',
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+            title="Daily Login Rewards"
+          >
+            🎁
+          </button>
+
+          {/* Hand History */}
+          <button
+            onClick={() => { playClick(); setShowHandHistory(true); }}
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              border: '2px solid #334155',
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+            title="Hand History"
+          >
+            📜
+          </button>
+
+          {/* Settings */}
+          <button
+            onClick={() => { playClick(); setShowSettings(true); }}
+            style={{
+              background: 'rgba(30, 41, 59, 0.9)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              border: '2px solid #334155',
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+            title="Settings"
+          >
+            ⚙️
+          </button>
         </div>
 
         {/* User Token Display & Auth */}
@@ -2604,6 +2769,19 @@ export function GameBoard() {
                 </div>
               )}
 
+              {/* Hand Odds Display */}
+              {isDecisionPhase && humanPlayer?.cards?.length === 2 && gameSettings?.showOdds && (
+                <div style={{ marginBottom: '12px' }}>
+                  <HandOddsDisplay
+                    card1={humanPlayer.cards[0]}
+                    card2={humanPlayer.cards[1]}
+                    numOpponents={aiPlayers.length}
+                    compact={true}
+                    show={true}
+                  />
+                </div>
+              )}
+
               {/* BIG DRAMATIC BUTTONS */}
               {isDecisionPhase && !humanDecided && !isPaused && (
                 <div className="hold-drop-buttons" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
@@ -3086,6 +3264,87 @@ export function GameBoard() {
         <GhostStoryOverlay
           story={ghostStory}
           onComplete={() => setGhostStory(null)}
+        />
+      )}
+
+      {/* Weekly Challenges Modal */}
+      <WeeklyChallengesModal
+        isOpen={showWeeklyChallenges}
+        onClose={() => setShowWeeklyChallenges(false)}
+        onTokensEarned={(tokens) => {
+          addTokens(tokens);
+          playTokens();
+        }}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onSettingsChange={(settings) => setGameSettings(settings)}
+      />
+
+      {/* Daily Login Calendar */}
+      <DailyLoginCalendar
+        isOpen={showDailyLogin}
+        onClose={() => setShowDailyLogin(false)}
+        onTokensEarned={(tokens) => {
+          addTokens(tokens);
+          playTokens();
+        }}
+      />
+
+      {/* Battle Pass Modal */}
+      <BattlePassModal
+        isOpen={showBattlePass}
+        onClose={() => setShowBattlePass(false)}
+        onRewardClaimed={(reward) => {
+          if (reward.type === 'tokens' && typeof reward.value === 'number') {
+            addTokens(reward.value);
+            playTokens();
+          }
+          setBattlePassState(loadBattlePass());
+        }}
+      />
+
+      {/* Hand History Sidebar */}
+      <HandHistorySidebar
+        isOpen={showHandHistory}
+        onClose={() => setShowHandHistory(false)}
+      />
+
+      {/* Level Up Notification */}
+      {levelUpPopup && (
+        <LevelUpNotification
+          level={levelUpPopup.level}
+          reward={levelUpPopup.reward}
+          onClose={() => setLevelUpPopup(null)}
+        />
+      )}
+
+      {/* Winner Celebration */}
+      {showWinnerCelebration && (
+        <WinnerCelebration
+          show={true}
+          winnerName={showWinnerCelebration.winnerName}
+          tokensWon={showWinnerCelebration.tokensWon}
+          isHuman={showWinnerCelebration.isHuman}
+          onComplete={() => setShowWinnerCelebration(null)}
+        />
+      )}
+
+      {/* Streak Celebration */}
+      <StreakCelebration
+        streak={winStreak}
+        show={showStreakCelebration}
+        onComplete={() => setShowStreakCelebration(false)}
+      />
+
+      {/* Floating Chat Emote */}
+      {floatingChatEmote && (
+        <FloatingChatEmote
+          message={floatingChatEmote.message}
+          position={floatingChatEmote.position}
         />
       )}
 
