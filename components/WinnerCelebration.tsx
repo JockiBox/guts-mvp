@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface WinnerCelebrationProps {
   show: boolean;
@@ -19,6 +19,12 @@ export function WinnerCelebration({
 }: WinnerCelebrationProps) {
   const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; emoji: string }>>([]);
   const [visible, setVisible] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+
+  // Keep ref updated without triggering effect
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (show) {
@@ -33,15 +39,15 @@ export function WinnerCelebration({
       }));
       setParticles(newParticles);
 
-      // Auto-hide after animation
+      // Auto-hide after 2 seconds
       const timer = setTimeout(() => {
         setVisible(false);
-        onComplete?.();
-      }, 3000);
+        onCompleteRef.current?.();
+      }, 2000);
 
       return () => clearTimeout(timer);
     }
-  }, [show, onComplete]);
+  }, [show]);
 
   if (!visible) return null;
 
