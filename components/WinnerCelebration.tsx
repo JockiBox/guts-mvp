@@ -200,17 +200,23 @@ export function StreakCelebration({
   onComplete?: () => void;
 }) {
   const [visible, setVisible] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+
+  // Keep ref updated without triggering effect
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (show && streak >= 3) {
       setVisible(true);
       const timer = setTimeout(() => {
         setVisible(false);
-        onComplete?.();
+        onCompleteRef.current?.();
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [show, streak, onComplete]);
+  }, [show, streak]);
 
   if (!visible || streak < 3) return null;
 
@@ -345,17 +351,23 @@ export function TokenGainAnimation({
 // Ghost reveal celebration
 export function GhostRevealCelebration({ show, onComplete }: { show: boolean; onComplete?: () => void }) {
   const [visible, setVisible] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+
+  // Keep ref updated without triggering effect
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (show) {
       setVisible(true);
       const timer = setTimeout(() => {
         setVisible(false);
-        onComplete?.();
+        onCompleteRef.current?.();
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [show, onComplete]);
+  }, [show]);
 
   if (!visible) return null;
 
